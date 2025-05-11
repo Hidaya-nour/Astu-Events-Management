@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '../../components/common/Header';
-import Footer from '../../components/common/Footer';
+import Header from '../../../components/common/Header';
+import Footer from '../../../components/common/Footer';
 
-export default function StudentDashboard() {
+export default function OrganizerDashboard() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +31,7 @@ export default function StudentDashboard() {
         }
 
         const data = await response.json();
-        if (data.user.role !== 'STUDENT') {
+        if (data.user.role !== 'organizer') {
           router.push('/auth/signin');
           return;
         }
@@ -61,23 +61,28 @@ export default function StudentDashboard() {
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Student Dashboard</h1>
+          <h1 className="text-3xl font-bold mb-8">Organizer Dashboard</h1>
           
           {user && (
             <div className="bg-white shadow rounded-lg p-6">
               <h2 className="text-xl font-semibold mb-4">Welcome, {user.name}!</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Upcoming Events Section */}
+                {/* Create Event Section */}
                 <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium mb-3">Upcoming Events</h3>
-                  <p className="text-gray-600">No upcoming events</p>
+                  <h3 className="text-lg font-medium mb-3">Create New Event</h3>
+                  <button
+                    onClick={() => router.push('/organizer/events/create')}
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                  >
+                    Create Event
+                  </button>
                 </div>
 
-                {/* Registered Events Section */}
+                {/* Your Events Section */}
                 <div className="bg-green-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium mb-3">Your Registered Events</h3>
-                  <p className="text-gray-600">No registered events</p>
+                  <h3 className="text-lg font-medium mb-3">Your Events</h3>
+                  <p className="text-gray-600">No events created yet</p>
                 </div>
               </div>
             </div>

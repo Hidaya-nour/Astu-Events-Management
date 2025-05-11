@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '../../components/common/Header';
-import Footer from '../../components/common/Footer';
+import Header from '../../../components/common/Header';
+import Footer from '../../../components/common/Footer';
 
-export default function OrganizerDashboard() {
+export default function AdminDashboard() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +31,7 @@ export default function OrganizerDashboard() {
         }
 
         const data = await response.json();
-        if (data.user.role !== 'EVENT_ORGANIZER') {
+        if (data.user.role !== 'admin') {
           router.push('/auth/signin');
           return;
         }
@@ -61,7 +61,7 @@ export default function OrganizerDashboard() {
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Organizer Dashboard</h1>
+          <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
           
           {user && (
             <div className="bg-white shadow rounded-lg p-6">

@@ -40,6 +40,7 @@ export default function SignInForm() {
       });
 
       const data = await response.json();
+      console.log(data.role);
 
       if (!response.ok) {
         throw new Error(data.message || 'Sign in failed');
@@ -49,10 +50,14 @@ export default function SignInForm() {
       localStorage.setItem('token', data.token);
       
       // Redirect based on user role
-      if (data.user.role === 'EVENT_ORGANIZER') {
-        router.push('/organizer/dashboard');
-      } else {
-        router.push('/student/dashboard');
+      if (data.user.role === 'organizer') {
+        router.push('/dashboard/organizer/dashboard');
+      }
+      else if (data.user.role === 'student') {
+        router.push('/dashboard/student/dashboard');
+      }
+      else {
+        router.push('/dashboard/admin/dashboard');
       }
     } catch (error) {
       setError(error.message || 'An error occurred during sign in');

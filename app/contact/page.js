@@ -1,16 +1,14 @@
-import Head from 'next/head';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
+
+export const metadata = {
+  title: 'Contact Us - ASTU Event App',
+  description: 'Contact ASTU Event Management System',
+};
 
 export default function Contact() {
   return (
     <div>
-      <Head>
-        <title>Contact Us - ASTU Event App</title>
-        <meta name="description" content="Contact ASTU Event Management System" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
       <Header />
 
       <main className="container mx-auto px-4 py-8">

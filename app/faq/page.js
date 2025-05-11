@@ -1,16 +1,14 @@
-import Head from 'next/head';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
+
+export const metadata = {
+  title: 'FAQ - ASTU Event App',
+  description: 'Frequently Asked Questions - ASTU Event Management System',
+};
 
 export default function FAQ() {
   return (
     <div>
-      <Head>
-        <title>FAQ - ASTU Event App</title>
-        <meta name="description" content="Frequently Asked Questions - ASTU Event Management System" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
       <Header />
 
       <main className="container mx-auto px-4 py-8">
