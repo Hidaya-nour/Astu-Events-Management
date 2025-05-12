@@ -1,14 +1,13 @@
 "use client"
 
 import type React from "react"
-
 import { type ReactNode, useState } from "react"
-import { Bell, Moon, Search, Sun } from "lucide-react"
+import { Bell, Moon, Search, Sun, Home, CalendarCheck, Users, FileEdit, Download } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import { Button } from "../ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,14 +15,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
+} from "../ui/dropdown-menu"
+import { Input } from "../ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface DashboardLayoutProps {
   children: ReactNode
   sidebarItems: {
-    icon: React.ElementType
+    icon: string
     title: string
     href: string
     isActive?: boolean
@@ -49,6 +48,15 @@ interface DashboardLayoutProps {
   helpLink?: string
 }
 
+const iconMap: Record<string, React.ComponentType<any>> = {
+  "home": Home,
+  "calendar-check": CalendarCheck,
+  "users": Users,
+  "file-edit": FileEdit,
+  "download": Download,
+  // ...add more as needed
+};
+
 export function DashboardLayout({
   children,
   sidebarItems,
@@ -72,10 +80,10 @@ export function DashboardLayout({
       <header className="sticky top-0 z-30 flex h-16 items-center border-b bg-background px-4 md:px-6 dark:bg-gray-800 dark:border-gray-700">
         <div className="flex items-center gap-2 font-semibold">
           {appLogo ? (
-            <Image src={appLogo || "/placeholder.svg"} width={32} height={32} alt={appName} className="rounded" />
+            <Image src={appLogo} width={32} height={32} alt={appName} className="rounded" />
           ) : (
             <div className="h-8 w-8 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold">
-              {appName.charAt(0)}
+              {(appName || "A").charAt(0)}
             </div>
           )}
           <span className="hidden md:inline-block">{appName}</span>
@@ -83,8 +91,12 @@ export function DashboardLayout({
 
         <div className="ml-auto flex items-center gap-4">
           <div className="relative hidden md:block">
-            <Input type="search" placeholder="Search..." className="w-[200px] md:w-[300px] pl-8" />
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              type="search" 
+              placeholder="Search..." 
+              className="w-[200px] md:w-[300px] pl-8" 
+            />
+            <Search className="absolute left-2.5  h-4 w-4 text-muted-foreground" />
           </div>
 
           <DropdownMenu>
@@ -131,8 +143,8 @@ export function DashboardLayout({
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={userInfo.avatar || ""} alt={userInfo.name} />
-                  <AvatarFallback>{userInfo.initials || userInfo.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={userInfo?.avatar || ""} alt={userInfo?.name || "User"} />
+                  <AvatarFallback>{userInfo?.initials || userInfo?.name?.charAt(0) || "U"}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -153,18 +165,21 @@ export function DashboardLayout({
         {/* Sidebar */}
         <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex dark:bg-gray-800 dark:border-gray-700">
           <nav className="grid gap-2 text-sm">
-            {sidebarItems.map((item, index) => (
-              <Link
-                key={index}
-                href={item.href}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-all ${
-                  item.isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.title}
-              </Link>
-            ))}
+            {sidebarItems.map((item, index) => {
+              const Icon = iconMap[item.icon] || Home;
+              return (
+                <Link
+                  key={index}
+                  href={item.href}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-all ${
+                    item.isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.title}
+                </Link>
+              );
+            })}
             {helpText && (
               <>
                 <div className="my-2 h-[1px] w-full bg-border dark:bg-gray-700" />
