@@ -1,6 +1,6 @@
-import Header from '../../components/common/Header'
-import Footer from '../../components/common/Footer'
-import RegisterForm from '../../components/auth/RegisterForm'
+import Header from '@/components/common/Header'
+import Footer from '@/components/common/Footer'
+import RegisterForm from '@/components/auth/RegisterForm'
 
 export const metadata = {
   title: 'Register - ASTU Event App',

@@ -131,9 +131,47 @@ export function CreateEventForm() {
     }
 
     try {
-      // In a real app, you would upload images and submit form data to your API
-      // For now, we'll just simulate a successful submission
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      // First, upload images if any
+      const imageUrls = []
+      if (images.length > 0) {
+        for (const image of images) {
+          const formData = new FormData()
+          formData.append('file', image)
+          
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          })
+          
+          if (!response.ok) {
+            throw new Error('Failed to upload image')
+          }
+          
+          const data = await response.json()
+          imageUrls.push(data.url)
+        }
+      }
+
+      // Prepare event data
+      const eventData = {
+        ...formData,
+        images: imageUrls,
+        date: formData.date?.toISOString(),
+        registrationDeadline: formData.registrationDeadline?.toISOString(),
+      }
+
+      // Create event
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventData),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create event')
+      }
 
       toast({
         title: "Success",
@@ -142,6 +180,7 @@ export function CreateEventForm() {
 
       router.push("/organizer/events")
     } catch (error) {
+      console.error('Error creating event:', error)
       toast({
         title: "Error",
         description: "There was a problem creating the event. Please try again.",

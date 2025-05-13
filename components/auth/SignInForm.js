@@ -50,10 +50,10 @@ export default function SignInForm() {
       localStorage.setItem('token', data.token);
       
       // Redirect based on user role
-      if (data.user.role === 'organizer') {
+      if (data.user.role === 'EVENT_ORGANIZER') {
         router.push('/dashboard/organizer/dashboard');
       }
-      else if (data.user.role === 'student') {
+      else if (data.user.role === 'STUDENT') {
         router.push('/dashboard/student/dashboard');
       }
       else {

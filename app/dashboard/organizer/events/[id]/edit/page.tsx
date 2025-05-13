@@ -24,7 +24,7 @@ export default async function EditEventPage({ params }: { params: { id: string }
       }}
     >
       <div>
-        <DashboardHeader heading="Create Event" text="Enter your event details." />
+        <DashboardHeader heading="Edit Event" text="Update your event details." />
         <div className="max-w-3xl mx-auto">
           <EventForm eventId={params.id} />
         </div>

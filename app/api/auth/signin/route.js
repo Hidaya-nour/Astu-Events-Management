@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
+// Create a singleton instance of PrismaClient
 const prisma = new PrismaClient();
 
 export async function POST(request) {
@@ -17,9 +18,18 @@ export async function POST(request) {
       );
     }
 
+    // Validate JWT_SECRET is set
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not set in environment variables');
+      return NextResponse.json(
+        { message: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
     // Find user by email
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: email.toLowerCase().trim() },
     });
 
     if (!user) {
@@ -60,9 +70,16 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error('Sign in error:', error);
+    // Log the specific error for debugging
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+    }
     return NextResponse.json(
       { message: 'Error signing in' },
       { status: 500 }
     );
+  } finally {
+    // Close Prisma connection
+    await prisma.$disconnect();
   }
 } 

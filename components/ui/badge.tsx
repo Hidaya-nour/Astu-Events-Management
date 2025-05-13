@@ -22,18 +22,6 @@ const badgeVariants = cva(
     },
   }
 )
-function getBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "pending":
-      return "secondary";
-    case "approved":
-      return "default";
-    case "cancelled":
-      return "destructive";
-    default:
-      return "outline";
-  }
-}
 
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,

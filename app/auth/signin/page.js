@@ -1,6 +1,6 @@
-import Header from '../../components/common/Header'
-import Footer from '../../components/common/Footer'
-import SignInForm from '../../components/auth/SignInForm'
+import Header from '@/components/common/Header'
+import Footer from '@/components/common/Footer'
+import SignInForm from '@/components/auth/SignInForm'
 
 export const metadata = {
   title: 'Sign In - ASTU Event App',

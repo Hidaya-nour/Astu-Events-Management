@@ -6,8 +6,8 @@ import { Bell, Moon, Search, Sun, Home, CalendarCheck, Users, FileEdit, Download
 import Image from "next/image"
 import Link from "next/link"
 
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
-import { Button } from "../ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,8 +15,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu"
-import { Input } from "../ui/input"
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface DashboardLayoutProps {
