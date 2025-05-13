@@ -170,4 +170,39 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+export async function GET() {
+  try {
+    const events = await prisma.event.findMany({
+      orderBy: {
+        date: "desc",
+      },
+      include: {
+        _count: {
+          select: {
+            registrations: true,
+          },
+        },
+      },
+    })
+
+    const formattedEvents = events.map((event) => ({
+      id: event.id,
+      title: event.title,
+      date: event.date,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      location: event.location,
+      category: event.category,
+      status: event.approvalStatus,
+      capacity: event.capacity,
+      currentAttendees: event._count.registrations,
+    }))
+
+    return NextResponse.json(formattedEvents)
+  } catch (error) {
+    console.error("[EVENTS_GET]", error)
+    return new NextResponse("Internal Error", { status: 500 })
+  }
 } 

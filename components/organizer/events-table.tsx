@@ -26,66 +26,24 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 
-// Sample data - in a real app, this would come from your API
-const events = [
-  {
-    id: "1",
-    title: "Tech Symposium 2025",
-    date: new Date("2025-05-15"),
-    time: "10:00 AM - 4:00 PM",
-    location: "Main Auditorium",
-    status: "APPROVED",
-    category: "TECHNOLOGY",
-    attendees: 120,
-    capacity: 150,
-  },
-  {
-    id: "2",
-    title: "Workshop on AI and Machine Learning",
-    date: new Date("2025-06-05"),
-    time: "2:00 PM - 5:00 PM",
-    location: "Computer Lab",
-    status: "PENDING",
-    category: "WORKSHOP",
-    attendees: 45,
-    capacity: 50,
-  },
-  {
-    id: "3",
-    title: "Annual Coding Competition",
-    date: new Date("2025-06-15"),
-    time: "9:00 AM - 6:00 PM",
-    location: "Exhibition Hall",
-    status: "APPROVED",
-    category: "COMPETITION",
-    attendees: 75,
-    capacity: 100,
-  },
-  {
-    id: "4",
-    title: "Career Development Seminar",
-    date: new Date("2025-05-25"),
-    time: "1:00 PM - 4:00 PM",
-    location: "Conference Room",
-    status: "APPROVED",
-    category: "CAREER",
-    attendees: 60,
-    capacity: 80,
-  },
-  {
-    id: "5",
-    title: "Mobile App Development Workshop",
-    date: new Date("2025-07-10"),
-    time: "10:00 AM - 3:00 PM",
-    location: "Computer Lab",
-    status: "PENDING",
-    category: "WORKSHOP",
-    attendees: 30,
-    capacity: 40,
-  },
-]
+interface Event {
+  id: string
+  title: string
+  date: Date
+  startTime: string
+  endTime: string
+  location: string
+  category: string
+  status: string
+  capacity: number
+  currentAttendees: number
+}
 
-export function EventsTable() {
+interface EventsTableProps {
+  events: Event[]
+}
+
+export function EventsTable({ events }: EventsTableProps) {
   const [selectedEvents, setSelectedEvents] = useState<string[]>([])
 
   const toggleEventSelection = (eventId: string) => {
@@ -132,6 +90,15 @@ export function EventsTable() {
       <Badge className={`${style.bg} ${style.text} hover:${style.bg}`}>
         {category.charAt(0) + category.slice(1).toLowerCase().replace("_", " ")}
       </Badge>
+    )
+  }
+
+  if (!events.length) {
+    return (
+      <div className="text-center py-10">
+        <h3 className="text-lg font-medium">No events found</h3>
+        <p className="text-muted-foreground">Create your first event to get started.</p>
+      </div>
     )
   }
 
@@ -187,7 +154,7 @@ export function EventsTable() {
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Clock className="h-4 w-4 mr-1" />
-                      <span>{event.time}</span>
+                      <span>{event.startTime} - {event.endTime}</span>
                     </div>
                   </div>
                 </TableCell>
@@ -206,12 +173,12 @@ export function EventsTable() {
                 <TableCell className="hidden md:table-cell">
                   <div className="flex flex-col">
                     <span className="font-medium">
-                      {event.attendees}/{event.capacity}
+                      {event.currentAttendees}/{event.capacity}
                     </span>
                     <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                       <div
                         className="bg-primary h-2 rounded-full"
-                        style={{ width: `${(event.attendees / event.capacity) * 100}%` }}
+                        style={{ width: `${(event.currentAttendees / event.capacity) * 100}%` }}
                       ></div>
                     </div>
                   </div>
@@ -227,33 +194,28 @@ export function EventsTable() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuItem asChild>
-                        <Link href={`/organizer/events/${event.id}`}>
+                        <Link href={`/dashboard/organizer/events/${event.id}`}>
                           <Eye className="h-4 w-4 mr-2" />
                           View Details
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href={`/organizer/events/${event.id}/edit`}>
+                        <Link href={`/dashboard/organizer/events/${event.id}/edit`}>
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Event
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href={`/organizer/events/${event.id}/attendees`}>
+                        <Link href={`/dashboard/organizer/events/${event.id}/attendees`}>
                           <Users className="h-4 w-4 mr-2" />
                           Manage Attendees
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href={`/organizer/events/${event.id}/analytics`}>
+                        <Link href={`/dashboard/organizer/events/${event.id}/analytics`}>
                           <BarChart className="h-4 w-4 mr-2" />
                           View Analytics
                         </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>
-                        <Copy className="h-4 w-4 mr-2" />
-                        Duplicate
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-red-600">
@@ -268,10 +230,9 @@ export function EventsTable() {
           </TableBody>
         </Table>
       </div>
-
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing <strong>5</strong> of <strong>12</strong> events
+          {selectedEvents.length} of {events.length} events selected
         </div>
         <Pagination>
           <PaginationContent>
@@ -279,15 +240,7 @@ export function EventsTable() {
               <PaginationPrevious href="#" />
             </PaginationItem>
             <PaginationItem>
-              <PaginationLink href="#" isActive>
-                1
-              </PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink href="#">2</PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink href="#">3</PaginationLink>
+              <PaginationLink href="#">1</PaginationLink>
             </PaginationItem>
             <PaginationItem>
               <PaginationEllipsis />

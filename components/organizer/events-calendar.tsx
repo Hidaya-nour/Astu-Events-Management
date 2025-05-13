@@ -7,67 +7,26 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, CalendarIcon, Clock, MapPin } from "lucide-react"
 import { format, isSameDay } from "date-fns"
+import Link from "next/link"
 
-// Sample data - in a real app, this would come from your API
-const events = [
-  {
-    id: "1",
-    title: "Tech Symposium 2025",
-    date: new Date("2025-05-15"),
-    time: "10:00 AM - 4:00 PM",
-    location: "Main Auditorium",
-    status: "APPROVED",
-    category: "TECHNOLOGY",
-    attendees: 120,
-    capacity: 150,
-  },
-  {
-    id: "2",
-    title: "Workshop on AI and Machine Learning",
-    date: new Date("2025-06-05"),
-    time: "2:00 PM - 5:00 PM",
-    location: "Computer Lab",
-    status: "PENDING",
-    category: "WORKSHOP",
-    attendees: 45,
-    capacity: 50,
-  },
-  {
-    id: "3",
-    title: "Annual Coding Competition",
-    date: new Date("2025-06-15"),
-    time: "9:00 AM - 6:00 PM",
-    location: "Exhibition Hall",
-    status: "APPROVED",
-    category: "COMPETITION",
-    attendees: 75,
-    capacity: 100,
-  },
-  {
-    id: "4",
-    title: "Career Development Seminar",
-    date: new Date("2025-05-25"),
-    time: "1:00 PM - 4:00 PM",
-    location: "Conference Room",
-    status: "APPROVED",
-    category: "CAREER",
-    attendees: 60,
-    capacity: 80,
-  },
-  {
-    id: "5",
-    title: "Mobile App Development Workshop",
-    date: new Date("2025-07-10"),
-    time: "10:00 AM - 3:00 PM",
-    location: "Computer Lab",
-    status: "PENDING",
-    category: "WORKSHOP",
-    attendees: 30,
-    capacity: 40,
-  },
-]
+interface Event {
+  id: string
+  title: string
+  date: Date
+  startTime: string
+  endTime: string
+  location: string
+  category: string
+  status: string
+  capacity: number
+  currentAttendees: number
+}
 
-export function EventsCalendarView() {
+interface EventsCalendarViewProps {
+  events: Event[]
+}
+
+export function EventsCalendarView({ events }: EventsCalendarViewProps) {
   const [date, setDate] = useState<Date>(new Date())
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
 
@@ -111,6 +70,15 @@ export function EventsCalendarView() {
       <Badge className={`${style.bg} ${style.text} hover:${style.bg}`}>
         {category.charAt(0) + category.slice(1).toLowerCase().replace("_", " ")}
       </Badge>
+    )
+  }
+
+  if (!events.length) {
+    return (
+      <div className="text-center py-10">
+        <h3 className="text-lg font-medium">No events found</h3>
+        <p className="text-muted-foreground">Create your first event to get started.</p>
+      </div>
     )
   }
 
@@ -186,7 +154,7 @@ export function EventsCalendarView() {
                     </div>
                     <div className="flex items-center text-sm text-muted-foreground mb-1">
                       <Clock className="h-3.5 w-3.5 mr-1" />
-                      <span>{event.time}</span>
+                      <span>{event.startTime} - {event.endTime}</span>
                     </div>
                     <div className="flex items-center text-sm text-muted-foreground mb-2">
                       <MapPin className="h-3.5 w-3.5 mr-1" />
@@ -195,7 +163,7 @@ export function EventsCalendarView() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">{getCategoryBadge(event.category)}</div>
                       <span className="text-xs text-muted-foreground">
-                        {event.attendees}/{event.capacity} attendees
+                        {event.currentAttendees}/{event.capacity} attendees
                       </span>
                     </div>
                   </div>
@@ -206,9 +174,11 @@ export function EventsCalendarView() {
                 <CalendarIcon className="h-12 w-12 text-muted-foreground mb-4" />
                 <h4 className="font-medium mb-1">No Events</h4>
                 <p className="text-sm text-muted-foreground mb-4">There are no events scheduled for this date.</p>
-                <Button variant="outline" size="sm">
-                  Create Event
-                </Button>
+                <Link href="/dashboard/organizer/events/create">
+                  <Button variant="outline" size="sm">
+                    Create Event
+                  </Button>
+                </Link>
               </div>
             )}
           </CardContent>
