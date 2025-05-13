@@ -21,6 +21,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
+const EVENT_CATEGORIES = [
+  "Academic",
+  "Sports",
+  "Cultural",
+  "Technical",
+  "Workshop",
+  "Seminar",
+  "Conference",
+  "Other"
+]
+
+const EVENT_TYPES = [
+  { value: "IN_PERSON", label: "In Person" },
+  { value: "ONLINE", label: "Online" },
+  { value: "HYBRID", label: "Hybrid" }
+]
+
 export function CreateEventForm() {
   const [formData, setFormData] = useState({
     title: "",
@@ -49,17 +66,112 @@ export function CreateEventForm() {
   const [imageUrls, setImageUrls] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [currentTab, setCurrentTab] = useState("basic")
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const router = useRouter()
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    // Basic Info Validation
+    if (!formData.title.trim()) {
+      newErrors.title = "Title is required"
+    } else if (formData.title.length < 3) {
+      newErrors.title = "Title must be at least 3 characters"
+    }
+
+    if (!formData.description.trim()) {
+      newErrors.description = "Description is required"
+    } else if (formData.description.length < 10) {
+      newErrors.description = "Description must be at least 10 characters"
+    }
+
+    if (!formData.date) {
+      newErrors.date = "Event date is required"
+    } else if (formData.date < new Date()) {
+      newErrors.date = "Event date cannot be in the past"
+    }
+
+    if (!formData.startTime) {
+      newErrors.startTime = "Start time is required"
+    }
+
+    if (formData.endTime && formData.startTime) {
+      const [startHours, startMinutes] = formData.startTime.split(":").map(Number)
+      const [endHours, endMinutes] = formData.endTime.split(":").map(Number)
+      const startTime = startHours * 60 + startMinutes
+      const endTime = endHours * 60 + endMinutes
+
+      if (endTime <= startTime) {
+        newErrors.endTime = "End time must be after start time"
+      }
+    }
+
+    if (!formData.location.trim()) {
+      newErrors.location = "Location is required"
+    }
+
+    if (!formData.category) {
+      newErrors.category = "Category is required"
+    }
+
+    if (!formData.capacity) {
+      newErrors.capacity = "Capacity is required"
+    } else if (isNaN(Number(formData.capacity)) || Number(formData.capacity) <= 0) {
+      newErrors.capacity = "Capacity must be a positive number"
+    }
+
+    // Details Validation
+    if (formData.registrationDeadline && formData.date) {
+      if (formData.registrationDeadline > formData.date) {
+        newErrors.registrationDeadline = "Registration deadline cannot be after event date"
+      }
+    }
+
+    // Email validation
+    if (formData.contactEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(formData.contactEmail)) {
+        newErrors.contactEmail = "Invalid email format"
+      }
+    }
+
+    // Phone validation
+    if (formData.contactPhone) {
+      const phoneRegex = /^\+?[1-9]\d{1,14}$/
+      if (!phoneRegex.test(formData.contactPhone)) {
+        newErrors.contactPhone = "Phone number must start with + followed by 1-14 digits"
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
   }
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
+    // Clear error when user makes a selection
+    if (errors[name]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
   }
 
   const handleSwitchChange = (name: string, checked: boolean) => {
@@ -68,10 +180,26 @@ export function CreateEventForm() {
 
   const handleDateChange = (name: string, date: Date | undefined) => {
     setFormData((prev) => ({ ...prev, [name]: date }))
+    // Clear error when user selects a date
+    if (errors[name]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
   }
 
   const handleTagAdd = () => {
     if (formData.customTag && !formData.tags.includes(formData.customTag)) {
+      if (formData.tags.length >= 10) {
+        toast({
+          title: "Maximum tags reached",
+          description: "You can add up to 10 tags only",
+          variant: "destructive",
+        })
+        return
+      }
       setFormData((prev) => ({
         ...prev,
         tags: [...prev.tags, prev.customTag],
@@ -92,6 +220,15 @@ export function CreateEventForm() {
     if (!files) return
 
     const newImages = Array.from(files)
+    if (images.length + newImages.length > 5) {
+      toast({
+        title: "Maximum images reached",
+        description: "You can upload up to 5 images only",
+        variant: "destructive",
+      })
+      return
+    }
+
     setImages((prev) => [...prev, ...newImages])
 
     // Create URLs for preview
@@ -101,64 +238,50 @@ export function CreateEventForm() {
 
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index))
-
-    // Revoke the object URL to avoid memory leaks
     URL.revokeObjectURL(imageUrls[index])
     setImageUrls((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-
-    // Validate form
-    if (
-      !formData.title ||
-      !formData.description ||
-      !formData.date ||
-      !formData.startTime ||
-      !formData.location ||
-      !formData.category ||
-      !formData.capacity
-    ) {
+    
+    if (!validateForm()) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
+        title: "Validation Error",
+        description: "Please fix the errors in the form",
         variant: "destructive",
       })
-      setIsLoading(false)
       return
     }
 
+    setIsLoading(true)
+
     try {
-      // First, upload images if any
-      const imageUrls = []
-      if (images.length > 0) {
-        for (const image of images) {
-          const formData = new FormData()
-          formData.append('file', image)
-          
-          const response = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData,
-          })
-          
-          if (!response.ok) {
-            throw new Error('Failed to upload image')
-          }
-          
-          const data = await response.json()
-          imageUrls.push(data.url)
-        }
+      // Prepare event data according to the validation schema
+      const eventData = {
+        title: formData.title,
+        description: formData.description,
+        date: formData.date?.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        startTime: formData.startTime,
+        endTime: formData.endTime || undefined,
+        location: formData.location,
+        venue: formData.venue || undefined,
+        category: formData.category,
+        capacity: parseInt(formData.capacity),
+        registrationDeadline: formData.registrationDeadline?.toISOString().split('T')[0] || undefined,
+        isPublic: formData.isPublic,
+        requiresApproval: formData.requiresApproval,
+        allowFeedback: formData.allowFeedback,
+        organizerInfo: formData.organizerInfo,
+        eventType: formData.eventType,
+        department: formData.department || undefined,
+        contactEmail: formData.contactEmail || undefined,
+        contactPhone: formData.contactPhone || undefined,
+        tags: formData.tags,
+        images: [], // Empty array for now
       }
 
-      // Prepare event data
-      const eventData = {
-        ...formData,
-        images: imageUrls,
-        date: formData.date?.toISOString(),
-        registrationDeadline: formData.registrationDeadline?.toISOString(),
-      }
+      console.log('Submitting event data:', eventData)
 
       // Create event
       const response = await fetch('/api/events', {
@@ -169,8 +292,11 @@ export function CreateEventForm() {
         body: JSON.stringify(eventData),
       })
 
+      const data = await response.json()
+      console.log('API Response:', data)
+
       if (!response.ok) {
-        throw new Error('Failed to create event')
+        throw new Error(data.error || 'Failed to create event')
       }
 
       toast({
@@ -178,12 +304,12 @@ export function CreateEventForm() {
         description: "Event has been created successfully.",
       })
 
-      router.push("/organizer/events")
+      router.push("/dashboard/organizer/events")
     } catch (error) {
       console.error('Error creating event:', error)
       toast({
         title: "Error",
-        description: "There was a problem creating the event. Please try again.",
+        description: error instanceof Error ? error.message : "There was a problem creating the event. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -205,492 +331,440 @@ export function CreateEventForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      <Card>
-        <CardContent className="pt-4">
-          <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="media">Media</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
-            </TabsList>
+      <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="basic">Basic Info</TabsTrigger>
+          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="media">Media</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
 
-            {/* Basic Info Tab */}
-            <TabsContent value="basic" className="space-y-6 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">
-                  Event Title <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="title"
-                  name="title"
-                  placeholder="Enter a descriptive title for your event"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
+        <TabsContent value="basic" className="space-y-4">
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title">Event Title</Label>
+              <Input
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+                placeholder="Enter event title"
+                className={cn(errors.title && "border-red-500")}
+              />
+              {errors.title && (
+                <p className="text-sm text-red-500 mt-1">{errors.title}</p>
+              )}
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">
-                  Description <span className="text-red-500">*</span>
-                </Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  placeholder="Provide details about your event"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  className="min-h-[150px]"
-                  required
-                />
-              </div>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                placeholder="Enter event description"
+                className={cn(errors.description && "border-red-500")}
+              />
+              {errors.description && (
+                <p className="text-sm text-red-500 mt-1">{errors.description}</p>
+              )}
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>
-                    Event Date <span className="text-red-500">*</span>
-                  </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !formData.date && "text-muted-foreground",
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.date ? format(formData.date, "PPP") : "Select date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formData.date}
-                        onSelect={(date) => handleDateChange("date", date)}
-                        initialFocus
-                        disabled={(date) => date < new Date()}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="category">
-                    Category <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={formData.category} onValueChange={(value) => handleSelectChange("category", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ACADEMIC">Academic</SelectItem>
-                      <SelectItem value="CULTURAL">Cultural</SelectItem>
-                      <SelectItem value="SPORTS">Sports</SelectItem>
-                      <SelectItem value="TECHNOLOGY">Technology</SelectItem>
-                      <SelectItem value="CAREER">Career</SelectItem>
-                      <SelectItem value="WORKSHOP">Workshop</SelectItem>
-                      <SelectItem value="SEMINAR">Seminar</SelectItem>
-                      <SelectItem value="COMPETITION">Competition</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startTime">
-                    Start Time <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="flex items-center">
-                    <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="startTime"
-                      name="startTime"
-                      type="time"
-                      value={formData.startTime}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="endTime">End Time</Label>
-                  <div className="flex items-center">
-                    <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="endTime"
-                      name="endTime"
-                      type="time"
-                      value={formData.endTime}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="location">
-                    Location <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="flex items-center">
-                    <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="location"
-                      name="location"
-                      placeholder="Building or area"
-                      value={formData.location}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="venue">Specific Venue</Label>
-                  <Input
-                    id="venue"
-                    name="venue"
-                    placeholder="Room number, hall name, etc."
-                    value={formData.venue}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="capacity">
-                    Capacity <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="flex items-center">
-                    <Users className="mr-2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="capacity"
-                      name="capacity"
-                      type="number"
-                      min="1"
-                      placeholder="Maximum number of attendees"
-                      value={formData.capacity}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Registration Deadline</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !formData.registrationDeadline && "text-muted-foreground",
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.registrationDeadline
-                          ? format(formData.registrationDeadline, "PPP")
-                          : "Select deadline"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={formData.registrationDeadline}
-                        onSelect={(date) => handleDateChange("registrationDeadline", date)}
-                        initialFocus
-                        disabled={(date) => date < new Date() || (formData.date ? date > formData.date : false)}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Details Tab */}
-            <TabsContent value="details" className="space-y-6 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="department">Department/Organization</Label>
-                <Input
-                  id="department"
-                  name="department"
-                  placeholder="Department or organization hosting this event"
-                  value={formData.department}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="contactEmail">Contact Email</Label>
-                  <Input
-                    id="contactEmail"
-                    name="contactEmail"
-                    type="email"
-                    placeholder="Email for inquiries"
-                    value={formData.contactEmail}
-                    onChange={handleInputChange}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="contactPhone">Contact Phone</Label>
-                  <Input
-                    id="contactPhone"
-                    name="contactPhone"
-                    placeholder="Phone number for inquiries"
-                    value={formData.contactPhone}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Event Type</Label>
-                <RadioGroup
-                  value={formData.eventType}
-                  onValueChange={(value) => handleSelectChange("eventType", value)}
-                  className="flex flex-col space-y-1"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="IN_PERSON" id="in_person" />
-                    <Label htmlFor="in_person" className="font-normal">
-                      In-Person
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="VIRTUAL" id="virtual" />
-                    <Label htmlFor="virtual" className="font-normal">
-                      Virtual
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="HYBRID" id="hybrid" />
-                    <Label htmlFor="hybrid" className="font-normal">
-                      Hybrid (Both)
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Tags</Label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {formData.tags.map((tag) => (
-                    <div
-                      key={tag}
-                      className="flex items-center bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm"
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Event Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.date && "text-muted-foreground",
+                        errors.date && "border-red-500"
+                      )}
                     >
-                      {tag}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-5 w-5 p-0 ml-1"
-                        onClick={() => handleTagRemove(tag)}
-                      >
-                        <X className="h-3 w-3" />
-                        <span className="sr-only">Remove {tag}</span>
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex space-x-2">
-                  <Input
-                    id="customTag"
-                    name="customTag"
-                    placeholder="Add a tag"
-                    value={formData.customTag}
-                    onChange={handleInputChange}
-                  />
-                  <Button type="button" variant="outline" onClick={handleTagAdd} disabled={!formData.customTag}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add
-                  </Button>
-                </div>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.date ? format(formData.date, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={formData.date}
+                      onSelect={(date) => handleDateChange("date", date)}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                {errors.date && (
+                  <p className="text-sm text-red-500 mt-1">{errors.date}</p>
+                )}
               </div>
-            </TabsContent>
 
-            {/* Media Tab */}
-            <TabsContent value="media" className="space-y-6 pt-4">
-              <div className="space-y-2">
-                <Label>Event Images</Label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  {imageUrls.map((url, index) => (
-                    <div key={index} className="relative rounded-md overflow-hidden aspect-video bg-muted">
-                      <img
-                        src={url || "/placeholder.svg"}
-                        alt={`Event preview ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 h-6 w-6"
-                        onClick={() => removeImage(index)}
-                      >
-                        <X className="h-4 w-4" />
-                        <span className="sr-only">Remove image</span>
-                      </Button>
-                    </div>
-                  ))}
-
-                  {imageUrls.length < 5 && (
-                    <div
-                      className="border-2 border-dashed rounded-md flex flex-col items-center justify-center p-4 aspect-video cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => fileInputRef.current?.click()}
+              <div>
+                <Label>Registration Deadline</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.registrationDeadline && "text-muted-foreground"
+                      )}
                     >
-                      <ImageIcon className="h-8 w-8 text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground">Click to upload</p>
-                      <p className="text-xs text-muted-foreground">PNG, JPG or JPEG (max 5MB)</p>
-                    </div>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/png, image/jpeg, image/jpg"
-                  className="hidden"
-                  onChange={handleImageUpload}
-                  multiple
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.registrationDeadline
+                        ? format(formData.registrationDeadline, "PPP")
+                        : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={formData.registrationDeadline}
+                      onSelect={(date) => handleDateChange("registrationDeadline", date)}
+                      disabled={(date) =>
+                        date < new Date() ||
+                        (formData.date ? date > formData.date : false)
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                {errors.registrationDeadline && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.registrationDeadline}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startTime">Start Time</Label>
+                <Input
+                  id="startTime"
+                  name="startTime"
+                  type="time"
+                  value={formData.startTime}
+                  onChange={handleInputChange}
+                  className={cn(errors.startTime && "border-red-500")}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={imageUrls.length >= 5}
+                {errors.startTime && (
+                  <p className="text-sm text-red-500 mt-1">{errors.startTime}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="endTime">End Time</Label>
+                <Input
+                  id="endTime"
+                  name="endTime"
+                  type="time"
+                  value={formData.endTime}
+                  onChange={handleInputChange}
+                  className={cn(errors.endTime && "border-red-500")}
+                />
+                {errors.endTime && (
+                  <p className="text-sm text-red-500 mt-1">{errors.endTime}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+                placeholder="Enter event location"
+                className={cn(errors.location && "border-red-500")}
+              />
+              {errors.location && (
+                <p className="text-sm text-red-500 mt-1">{errors.location}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="venue">Venue (Optional)</Label>
+              <Input
+                id="venue"
+                name="venue"
+                value={formData.venue}
+                onChange={handleInputChange}
+                placeholder="Enter venue name"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => handleSelectChange("category", value)}
                 >
-                  <ImageIcon className="h-4 w-4 mr-2" />
-                  {imageUrls.length === 0 ? "Upload Images" : "Add More Images"}
+                  <SelectTrigger className={cn(errors.category && "border-red-500")}>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EVENT_CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.category && (
+                  <p className="text-sm text-red-500 mt-1">{errors.category}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="capacity">Capacity</Label>
+                <Input
+                  id="capacity"
+                  name="capacity"
+                  type="number"
+                  min="1"
+                  value={formData.capacity}
+                  onChange={handleInputChange}
+                  placeholder="Enter maximum capacity"
+                  className={cn(errors.capacity && "border-red-500")}
+                />
+                {errors.capacity && (
+                  <p className="text-sm text-red-500 mt-1">{errors.capacity}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="details" className="space-y-4">
+          <div className="space-y-4">
+            <div>
+              <Label>Event Type</Label>
+              <RadioGroup
+                value={formData.eventType}
+                onValueChange={(value) => handleSelectChange("eventType", value)}
+                className="flex flex-col space-y-1"
+              >
+                {EVENT_TYPES.map((type) => (
+                  <div key={type.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={type.value} id={type.value} />
+                    <Label htmlFor={type.value}>{type.label}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            <div>
+              <Label htmlFor="department">Department (Optional)</Label>
+              <Input
+                id="department"
+                name="department"
+                value={formData.department}
+                onChange={handleInputChange}
+                placeholder="Enter department name"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="contactEmail">Contact Email (Optional)</Label>
+              <Input
+                id="contactEmail"
+                name="contactEmail"
+                type="email"
+                value={formData.contactEmail}
+                onChange={handleInputChange}
+                placeholder="Enter contact email"
+                className={cn(errors.contactEmail && "border-red-500")}
+              />
+              {errors.contactEmail && (
+                <p className="text-sm text-red-500 mt-1">{errors.contactEmail}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="contactPhone">Contact Phone (Optional)</Label>
+              <Input
+                id="contactPhone"
+                name="contactPhone"
+                value={formData.contactPhone}
+                onChange={handleInputChange}
+                placeholder="Enter contact phone"
+                className={cn(errors.contactPhone && "border-red-500")}
+              />
+              {errors.contactPhone && (
+                <p className="text-sm text-red-500 mt-1">{errors.contactPhone}</p>
+              )}
+            </div>
+
+            <div>
+              <Label>Tags (Optional)</Label>
+              <div className="flex space-x-2">
+                <Input
+                  value={formData.customTag}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, customTag: e.target.value }))
+                  }
+                  placeholder="Add a tag"
+                  className="flex-1"
+                />
+                <Button type="button" onClick={handleTagAdd}>
+                  Add
                 </Button>
-                <p className="text-xs text-muted-foreground mt-1">
-                  You can upload up to 5 images. First image will be used as the cover.
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {formData.tags.map((tag) => (
+                  <div
+                    key={tag}
+                    className="flex items-center space-x-1 bg-secondary px-2 py-1 rounded-md"
+                  >
+                    <span>{tag}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleTagRemove(tag)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="media" className="space-y-4">
+          <div className="space-y-4">
+            <div>
+              <Label>Event Images (Optional)</Label>
+              <div className="grid grid-cols-2 gap-4">
+                {imageUrls.map((url, index) => (
+                  <Card key={index}>
+                    <CardContent className="p-2">
+                      <div className="relative aspect-video">
+                        <img
+                          src={url}
+                          alt={`Event image ${index + 1}`}
+                          className="object-cover rounded-md w-full h-full"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-2 right-2 bg-background/80 p-1 rounded-full hover:bg-background"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {imageUrls.length < 5 && (
+                  <Card>
+                    <CardContent className="p-2">
+                      <div
+                        className="relative aspect-video border-2 border-dashed rounded-md flex items-center justify-center cursor-pointer hover:border-primary"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={handleImageUpload}
+                        />
+                        <div className="text-center">
+                          <ImageIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            Click to upload images
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Public Event</Label>
+                <p className="text-sm text-muted-foreground">
+                  Make this event visible to everyone
                 </p>
               </div>
+              <Switch
+                checked={formData.isPublic}
+                onCheckedChange={(checked) => handleSwitchChange("isPublic", checked)}
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label>Organizer Information</Label>
-                <div className="flex items-start space-x-3 p-4 rounded-md border">
-                  <Avatar>
-                    <AvatarImage src="/placeholder.svg?height=40&width=40" alt="Organizer" />
-                    <AvatarFallback>OU</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h4 className="text-sm font-medium">Computer Science Department</h4>
-                    <p className="text-xs text-muted-foreground">
-                      Organizer information will be displayed on the event page
-                    </p>
-                    <div className="flex items-center space-x-2 mt-2">
-                      <Switch
-                        id="organizerInfo"
-                        checked={formData.organizerInfo}
-                        onCheckedChange={(checked) => handleSwitchChange("organizerInfo", checked)}
-                      />
-                      <Label htmlFor="organizerInfo" className="text-sm font-normal">
-                        Show organizer information
-                      </Label>
-                    </div>
-                  </div>
-                </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Require Approval</Label>
+                <p className="text-sm text-muted-foreground">
+                  Manually approve registrations
+                </p>
               </div>
-            </TabsContent>
+              <Switch
+                checked={formData.requiresApproval}
+                onCheckedChange={(checked) =>
+                  handleSwitchChange("requiresApproval", checked)
+                }
+              />
+            </div>
 
-            {/* Settings Tab */}
-            <TabsContent value="settings" className="space-y-6 pt-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="isPublic">Public Event</Label>
-                    <p className="text-sm text-muted-foreground">Make this event visible to all students</p>
-                  </div>
-                  <Switch
-                    id="isPublic"
-                    checked={formData.isPublic}
-                    onCheckedChange={(checked) => handleSwitchChange("isPublic", checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="requiresApproval">Require Approval</Label>
-                    <p className="text-sm text-muted-foreground">Manually approve student registrations</p>
-                  </div>
-                  <Switch
-                    id="requiresApproval"
-                    checked={formData.requiresApproval}
-                    onCheckedChange={(checked) => handleSwitchChange("requiresApproval", checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="allowFeedback">Allow Feedback</Label>
-                    <p className="text-sm text-muted-foreground">Let attendees provide feedback after the event</p>
-                  </div>
-                  <Switch
-                    id="allowFeedback"
-                    checked={formData.allowFeedback}
-                    onCheckedChange={(checked) => handleSwitchChange("allowFeedback", checked)}
-                  />
-                </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Allow Feedback</Label>
+                <p className="text-sm text-muted-foreground">
+                  Let attendees provide feedback
+                </p>
               </div>
+              <Switch
+                checked={formData.allowFeedback}
+                onCheckedChange={(checked) =>
+                  handleSwitchChange("allowFeedback", checked)
+                }
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label>Preview</Label>
-                <Card className="overflow-hidden">
-                  <div className="aspect-video bg-muted relative">
-                    {imageUrls.length > 0 ? (
-                      <img
-                        src={imageUrls[0] || "/placeholder.svg"}
-                        alt="Event cover"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <ImageIcon className="h-12 w-12 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm px-2 py-1 rounded text-xs font-medium">
-                      {formData.category || "Category"}
-                    </div>
-                  </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold text-lg line-clamp-1">{formData.title || "Event Title"}</h3>
-                    <div className="flex items-center text-sm text-muted-foreground mt-1">
-                      <CalendarIcon className="h-3.5 w-3.5 mr-1" />
-                      <span>
-                        {formData.date ? format(formData.date, "PPP") : "Event Date"}
-                        {formData.startTime ? ` • ${formData.startTime}` : ""}
-                      </span>
-                    </div>
-                    <div className="flex items-center text-sm text-muted-foreground mt-1">
-                      <MapPin className="h-3.5 w-3.5 mr-1" />
-                      <span>{formData.location || "Location"}</span>
-                    </div>
-                    <p className="text-sm mt-2 line-clamp-2">
-                      {formData.description || "Event description will appear here."}
-                    </p>
-                  </CardContent>
-                </Card>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Show Organizer Info</Label>
+                <p className="text-sm text-muted-foreground">
+                  Display organizer contact information
+                </p>
               </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+              <Switch
+                checked={formData.organizerInfo}
+                onCheckedChange={(checked) =>
+                  handleSwitchChange("organizerInfo", checked)
+                }
+              />
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <div className="flex justify-between">
-        <Button type="button" variant="outline" onClick={prevTab} disabled={currentTab === "basic"}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={prevTab}
+          disabled={currentTab === "basic"}
+        >
           Previous
         </Button>
-
         {currentTab !== "settings" ? (
           <Button type="button" onClick={nextTab}>
             Next
@@ -700,7 +774,7 @@ export function CreateEventForm() {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                Creating Event...
               </>
             ) : (
               "Create Event"
