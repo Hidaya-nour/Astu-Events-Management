@@ -1,10 +1,11 @@
 "use client"
 
 import type React from "react"
-import { type ReactNode, useState } from "react"
+import { type ReactNode, useState, useEffect } from "react"
 import { Bell, Moon, Search, Sun, Home, CalendarCheck, Users, FileEdit, Download } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -18,30 +19,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useDashboard } from "@/contexts/dashboard-context"
 
 interface DashboardLayoutProps {
   children: ReactNode
-  sidebarItems: {
-    icon: string
-    title: string
-    href: string
-    isActive?: boolean
-  }[]
-  userInfo: {
-    name: string
-    role: string
-    avatar?: string
-    initials?: string
-    additionalInfo?: {
-      label: string
-      value: string
-      icon?: React.ElementType
-    }[]
-    badges?: {
-      label: string
-      icon?: React.ElementType
-    }[]
-  }
   appName: string
   appLogo?: string
   helpText?: string
@@ -59,14 +40,20 @@ const iconMap: Record<string, React.ComponentType<any>> = {
 
 export function DashboardLayout({
   children,
-  sidebarItems,
-  userInfo,
   appName,
   appLogo,
   helpText = "Need Help?",
   helpLink = "#",
 }: DashboardLayoutProps) {
   const [darkMode, setDarkMode] = useState(false)
+  const { userInfo, sidebarItems, setActiveItem } = useDashboard()
+  const pathname = usePathname()
+
+  useEffect(() => {
+    if (pathname) {
+      setActiveItem(pathname)
+    }
+  }, [pathname])
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode)
@@ -75,7 +62,7 @@ export function DashboardLayout({
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? "dark bg-gray-900" : "bg-gray-50"}`}>
+    <div className={`min-h-screen flex flex-col ${darkMode ? "dark bg-gray-900" : "bg-gray-50"}`}>
       {/* Header */}
       <header className="sticky top-0 z-30 flex h-16 items-center border-b bg-background px-4 md:px-6 dark:bg-gray-800 dark:border-gray-700">
         <div className="flex items-center gap-2 font-semibold">
@@ -161,42 +148,44 @@ export function DashboardLayout({
         </div>
       </header>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex dark:bg-gray-800 dark:border-gray-700">
-          <nav className="grid gap-2 text-sm">
-            {sidebarItems.map((item, index) => {
-              const Icon = iconMap[item.icon] || Home;
-              return (
-                <Link
-                  key={index}
-                  href={item.href}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-all ${
-                    item.isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.title}
-                </Link>
-              );
-            })}
-            {helpText && (
-              <>
-                <div className="my-2 h-[1px] w-full bg-border dark:bg-gray-700" />
-                <div className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm dark:border-gray-700">
-                  <h3 className="mb-1 font-medium">{helpText}</h3>
-                  <p className="text-xs text-muted-foreground">Contact our support team for assistance.</p>
-                  <Button variant="link" size="sm" className="mt-2 h-auto p-0 text-xs" asChild>
-                    <Link href={helpLink}>Contact Support</Link>
-                  </Button>
-                </div>
-              </>
-            )}
-          </nav>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar - fixed position */}
+        <aside className="hidden w-64 border-r bg-background md:block dark:bg-gray-800 dark:border-gray-700">
+          <div className="h-[calc(100vh-4rem)] sticky">
+            <nav className="p-4 grid gap-2 text-sm">
+              {sidebarItems.map((item, index) => {
+                const Icon = iconMap[item.icon] || Home;
+                return (
+                  <Link
+                    key={index}
+                    href={item.href}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-all ${
+                      item.isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.title}
+                  </Link>
+                );
+              })}
+              {helpText && (
+                <>
+                  <div className="my-2 h-[1px] w-full bg-border dark:bg-gray-700" />
+                  <div className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm dark:border-gray-700">
+                    <h3 className="mb-1 font-medium">{helpText}</h3>
+                    <p className="text-xs text-muted-foreground">Contact our support team for assistance.</p>
+                    <Button variant="link" size="sm" className="mt-2 h-auto p-0 text-xs" asChild>
+                      <Link href={helpLink}>Contact Support</Link>
+                    </Button>
+                  </div>
+                </>
+              )}
+            </nav>
+          </div>
         </aside>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-auto">
+        {/* Main content - only this area scrolls */}
+        <main className="flex-1 overflow-y-auto">
           <div className="container mx-auto p-4 md:p-6">{children}</div>
         </main>
       </div>

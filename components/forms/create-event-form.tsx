@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/hooks/use-toast"
+// import { useToast } from "@/hooks/use-toast"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon, Clock, MapPin, Users, ImageIcon, X, Plus, Loader2 } from "lucide-react"
@@ -20,7 +20,8 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 const EVENT_CATEGORIES = [
   "Academic",
   "Sports",
@@ -68,8 +69,12 @@ export function CreateEventForm() {
   const [currentTab, setCurrentTab] = useState("basic")
   const [errors, setErrors] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { toast } = useToast()
+  // const { toast } = useToast()
   const router = useRouter()
+
+  
+  const sucees_toast = (message) => toast.success(message)
+  const error_toast = (message) => toast.error(message)
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -193,11 +198,9 @@ export function CreateEventForm() {
   const handleTagAdd = () => {
     if (formData.customTag && !formData.tags.includes(formData.customTag)) {
       if (formData.tags.length >= 10) {
-        toast({
-          title: "Maximum tags reached",
-          description: "You can add up to 10 tags only",
-          variant: "destructive",
-        })
+        
+      error_toast("Maximum tags reached. You can add up to 10 tags only.")
+
         return
       }
       setFormData((prev) => ({
@@ -221,11 +224,9 @@ export function CreateEventForm() {
 
     const newImages = Array.from(files)
     if (images.length + newImages.length > 5) {
-      toast({
-        title: "Maximum images reached",
-        description: "You can upload up to 5 images only",
-        variant: "destructive",
-      })
+     
+      error_toast("Maximum images reached. You can upload up to 5 images only.")
+
       return
     }
 
@@ -246,11 +247,7 @@ export function CreateEventForm() {
     e.preventDefault()
     
     if (!validateForm()) {
-      toast({
-        title: "Validation Error",
-        description: "Please fix the errors in the form",
-        variant: "destructive",
-      })
+      toast.error("Validation Error. Please fix the errors in the form")
       return
     }
 
@@ -299,19 +296,33 @@ export function CreateEventForm() {
         throw new Error(data.error || 'Failed to create event')
       }
 
-      toast({
-        title: "Success",
-        description: "Event has been created successfully.",
-      })
+      // Show success toast
+      toast.success("Event created successfully!", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: "light",
+      });
 
-      router.push("/dashboard/organizer/events")
+      // Wait for toast to be visible before redirecting
+      setTimeout(() => {
+        // router.push("/dashboard/organizer/events")
+      }, 1000);
+
     } catch (error) {
       console.error('Error creating event:', error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "There was a problem creating the event. Please try again.",
-        variant: "destructive",
-      })
+      toast.error("Failed to create event. Please try again.", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: "light",
+      });
     } finally {
       setIsLoading(false)
     }

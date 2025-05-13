@@ -1,3 +1,5 @@
+"use client"
+
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { CreateEventForm } from "@/components/forms/create-event-form"
 import {
@@ -10,23 +12,23 @@ import {
 import { Home, ChevronRight } from "lucide-react"
 import Link from "next/link"
 
+import { Calendar, ChevronDown, Filter, MessageSquare, PlusCircle, Settings, Users } from "lucide-react"
+import Image from "next/image"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Progress } from "@/components/ui/progress"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 export default function CreateEventPage() {
   return (
     <DashboardLayout
       appName="ASTU Events"
-      sidebarItems={[
-        { icon: "home", title: "Dashboard", href: "/dashboard" },
-        { icon: "calendar-check", title: "Create Event", href: "/organizer/events/create" },
-        { icon: "users", title: "Manage Attendees", href: "/organizer/attendees" },
-        { icon: "file-edit", title: "Crete Events", href: "/organizer/events" },
-        { icon: "download", title: "Export Reports", href: "/organizer/reports" },
-      ]}
-      userInfo={{
-        name: "Jane Organizer",
-        role: "Organizer",
-        avatar: "/placeholder.svg?height=32&width=32",
-        initials: "JO"
-      }}
+      appLogo="/placeholder.svg?height=32&width=32"
+      helpText="Need Assistance?"
+      helpLink="/dashboard/organizer/support"
     >
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -37,7 +39,7 @@ export default function CreateEventPage() {
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="/organizer/dashboard">
+                <Link href="/dashboard/organizer/dashboard">
                   <Home className="h-4 w-4 mr-1" />
                   Dashboard
                 </Link>
@@ -48,7 +50,7 @@ export default function CreateEventPage() {
             </BreadcrumbSeparator>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="/organizer/events">Events</Link>
+                <Link href="/dashboard/organizer/events">Events</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>
