@@ -44,11 +44,11 @@ export default function SignInForm() {
       const data = await response.json();
 
       if (data.role === 'EVENT_ORGANIZER') {
-        router.push('/organizer/dashboard');
+        router.push('/organizer');
       } else if (data.role === 'STUDENT') {
-        router.push('/student/dashboard');
+        router.push('/student');
       } else {
-        router.push('/admin/dashboard');
+        router.push('/admin');
       }
     } catch (error) {
       setError(error.message || 'An error occurred during sign in');
