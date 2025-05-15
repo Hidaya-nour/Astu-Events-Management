@@ -1,5 +1,5 @@
-import Header from '../components/common/Header';
-import Footer from '../components/common/Footer';
+import Header from '@/components/common/Header';
+import Footer from '@/components/home/footer';
 
 export const metadata = {
   title: 'About Us - ASTU Event App',
@@ -18,7 +18,7 @@ export default function About() {
         </p>
       </main>
 
-      <Footer />
+      <Footer/>
     </div>
   );
 } 

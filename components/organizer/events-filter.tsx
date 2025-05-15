@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -9,34 +9,123 @@ import { Separator } from "@/components/ui/separator"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
+import { format, isSameDay } from "date-fns"
 import { cn } from "@/lib/utils"
 import { DateRange } from "react-day-picker"
 
-export function EventsFilter() {
+interface Event {
+  id: string
+  title: string
+  date: Date
+  startTime: string
+  endTime: string
+  location: string
+  category: string
+  status: string
+  capacity: number
+  currentAttendees: number
+}
+
+interface EventsFilterProps {
+  events: Event[]
+  onFilterChange: (filteredEvents: Event[]) => void
+}
+
+export function EventsFilter({ events, onFilterChange }: EventsFilterProps) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+  const [statusFilters, setStatusFilters] = useState({
+    APPROVED: true,
+    PENDING: true,
+    REJECTED: true,
+    CANCELLED: true,
+  })
+  const [categoryFilters, setCategoryFilters] = useState({
+    TECHNOLOGY: true,
+    WORKSHOP: true,
+    COMPETITION: true,
+    CAREER: true,
+    ACADEMIC: true,
+    CULTURAL: true,
+    SPORTS: true,
+  })
+
+  const toggleStatusFilter = (status: keyof typeof statusFilters) => {
+    setStatusFilters((prev) => ({
+      ...prev,
+      [status]: !prev[status],
+    }))
+  }
+
+  const toggleCategoryFilter = (category: keyof typeof categoryFilters) => {
+    setCategoryFilters((prev) => ({
+      ...prev,
+      [category]: !prev[category],
+    }))
+  }
+
+  const resetFilters = () => {
+    setDateRange(undefined)
+    setStatusFilters({
+      APPROVED: true,
+      PENDING: true,
+      REJECTED: true,
+      CANCELLED: true,
+    })
+    setCategoryFilters({
+      TECHNOLOGY: true,
+      WORKSHOP: true,
+      COMPETITION: true,
+      CAREER: true,
+      ACADEMIC: true,
+      CULTURAL: true,
+      SPORTS: true,
+    })
+  }
+
+  useEffect(() => {
+    // Apply filters to events
+    const filteredEvents = events.filter((event) => {
+      // Filter by status
+      if (!statusFilters[event.status as keyof typeof statusFilters]) {
+        return false
+      }
+
+      // Filter by category
+      if (!categoryFilters[event.category as keyof typeof categoryFilters]) {
+        return false
+      }
+
+      // Filter by date
+      if (dateRange && (!dateRange.from || !dateRange.to || !isSameDay(event.date, dateRange.from) || !isSameDay(event.date, dateRange.to))) {
+        return false
+      }
+
+      return true
+    })
+
+    onFilterChange(filteredEvents)
+  }, [events, statusFilters, categoryFilters, dateRange, onFilterChange])
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label className="text-sm font-medium">Status</Label>
         <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <Checkbox id="approved" defaultChecked />
-            <Label htmlFor="approved" className="text-sm font-normal">Approved</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="pending" defaultChecked />
-            <Label htmlFor="pending" className="text-sm font-normal">Pending</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="rejected" />
-            <Label htmlFor="rejected" className="text-sm font-normal">Rejected</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="cancelled" />
-            <Label htmlFor="cancelled" className="text-sm font-normal">Cancelled</Label>
-          </div>
+          {Object.entries(statusFilters).map(([status, checked]) => (
+            <div key={status} className="flex items-center space-x-2">
+              <Checkbox
+                id={`status-${status}`}
+                checked={checked}
+                onCheckedChange={() => toggleStatusFilter(status as keyof typeof statusFilters)}
+              />
+              <Label
+                htmlFor={`status-${status}`}
+                className="text-sm font-normal"
+              >
+                {status.charAt(0) + status.slice(1).toLowerCase()}
+              </Label>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -45,60 +134,25 @@ export function EventsFilter() {
       <div className="space-y-2">
         <Label className="text-sm font-medium">Category</Label>
         <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <Checkbox id="technology" defaultChecked />
-            <Label htmlFor="technology" className="text-sm font-normal">Technology</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="workshop" defaultChecked />
-            <Label htmlFor="workshop" className="text-sm font-normal">Workshop</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="competition" defaultChecked />
-            <Label htmlFor="competition" className="text-sm font-normal">Competition</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="career" defaultChecked />
-            <Label htmlFor="career" className="text-sm font-normal">Career</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="academic" defaultChecked />
-            <Label htmlFor="academic" className="text-sm font-normal">Academic</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="cultural" defaultChecked />
-            <Label htmlFor="cultural" className="text-sm font-normal">Cultural</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="sports" defaultChecked />
-            <Label htmlFor="sports" className="text-sm font-normal">Sports</Label>
-          </div>
+          {Object.entries(categoryFilters).map(([category, checked]) => (
+            <div key={category} className="flex items-center space-x-2">
+              <Checkbox
+                id={`category-${category}`}
+                checked={checked}
+                onCheckedChange={() => toggleCategoryFilter(category as keyof typeof categoryFilters)}
+              />
+              <Label
+                htmlFor={`category-${category}`}
+                className="text-sm font-normal"
+              >
+                {category.charAt(0) + category.slice(1).toLowerCase()}
+              </Label>
+            </div>
+          ))}
         </div>
       </div>
 
       <Separator />
-
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Time Period</Label>
-        <RadioGroup defaultValue="all">
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="all" id="all" />
-            <Label htmlFor="all" className="text-sm font-normal">All Events</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="upcoming" id="upcoming" />
-            <Label htmlFor="upcoming" className="text-sm font-normal">Upcoming Events</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="past" id="past" />
-            <Label htmlFor="past" className="text-sm font-normal">Past Events</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="custom" id="custom" />
-            <Label htmlFor="custom" className="text-sm font-normal">Custom Range</Label>
-          </div>
-        </RadioGroup>
-      </div>
 
       <div className="space-y-2">
         <Label className="text-sm font-medium">Date Range</Label>
@@ -151,15 +205,16 @@ export function EventsFilter() {
           </div>
           <div className="flex items-center space-x-2">
             <Checkbox id="low" />
-            <Label htmlFor="low" className="text-sm font-normal\">Low Attendance (50%)</Label>
+            <Label htmlFor="low" className="text-sm font-normal">Low Attendance (50%)</Label>
           </div>
         </div>
       </div>
 
       <Separator />
 
-      <Button className="w-full">Apply Filters</Button>
-      <Button variant="outline" className="w-full">Reset</Button>
+      <Button variant="outline" className="w-full" onClick={resetFilters}>
+        Reset Filters
+      </Button>
     </div>
   )
 }

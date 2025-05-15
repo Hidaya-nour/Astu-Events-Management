@@ -35,7 +35,7 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx"
-  ],
+, ".next/types/app/dashboard/organizer/events/[id]/edit/page.tsx"  ],
   "exclude": [
     "node_modules"
   ]

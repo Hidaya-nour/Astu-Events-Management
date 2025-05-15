@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import {
   Award,
   Bell,
@@ -133,7 +134,6 @@ function getBadgeVariant(status) {
       return "default"
   }
 }
-
 // Event Card Component
 function EventCard({ event }) {
   return (
@@ -195,13 +195,87 @@ function EventCard({ event }) {
 export default function StudentDashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
+  const [events, setEvents] = useState([])
+  const [myEvents, setMyEvents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const { data: session, status } = useSession()
+
+  // Calculate statistics from myEvents
+  const stats = {
+    totalEvents: myEvents.length,
+    registeredEvents: myEvents.filter(event => event.status === 'registered').length,
+    waitlistedEvents: myEvents.filter(event => event.status === 'waitlisted').length,
+    topCategory: myEvents.length > 0 
+      ? Object.entries(
+          myEvents.reduce((acc, event) => {
+            acc[event.category] = (acc[event.category] || 0) + 1
+            return acc
+          }, {})
+        ).sort((a, b) => b[1] - a[1])[0][0]
+      : 'None'
+  }
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await fetch('/api/events')
+        if (!response.ok) {
+          throw new Error('Failed to fetch events')
+        }
+        const data = await response.json()
+        setEvents(data)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    const fetchMyEvents = async () => {
+      try {
+        const response = await fetch('/api/events/my-events')
+        if (!response.ok) {
+          throw new Error('Failed to fetch my events')
+        }
+        const data = await response.json()
+        setMyEvents(data)
+      } catch (err) {
+        console.error('Error fetching my events:', err)
+      }
+    }
+
+    fetchEvents()
+    fetchMyEvents()
+  }, [])
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode)
-    // In a real implementation, you would toggle a class on the html/body element
-    // or use a theme provider like next-themes
     document.documentElement.classList.toggle("dark")
   }
+
+  // Add loading state
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    )
+  }
+
+  // Add unauthenticated state
+  // if (status === "unauthenticated") {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center">
+  //       <div className="text-center">
+  //         <h1 className="text-2xl font-bold mb-4">Please log in to view your dashboard</h1>
+  //         <Link href="/auth/login">
+  //           <Button>Login</Button>
+  //         </Link>
+  //       </div>
+  //     </div>
+  //   )
+  // }
 
   return (
     <div className={`min-h-screen ${darkMode ? "dark" : ""}`}>
@@ -292,36 +366,36 @@ export default function StudentDashboard() {
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
-                  <AvatarFallback>AB</AvatarFallback>
+                  {session?.user?.image ? (
+                    <AvatarImage src={session.user.image} alt={session.user.name} />
+                  ) : (
+                    <AvatarFallback>{session?.user?.name?.charAt(0) || "U"}</AvatarFallback>
+                  )}
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{session?.user?.name}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{session?.user?.email}</p>
+                </div>
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <User className="mr-2 h-4 w-4" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Calendar className="mr-2 h-4 w-4" />
-                My Events
+                <span>Profile</span>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <HelpCircle className="mr-2 h-4 w-4" />
-                Help & Support
+                <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <LogOut className="mr-2 h-4 w-4" />
-                Log out
+                <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -391,7 +465,7 @@ export default function StudentDashboard() {
                     <AvatarFallback>AB</AvatarFallback>
                   </Avatar>
                   <div>
-                    <h1 className="text-2xl font-bold">Welcome, {userInfo.name}</h1>
+                    <h1 className="text-2xl font-bold">Welcome, {session?.user?.name}</h1>
                     <p className="text-muted-foreground">
                       Student ID: {userInfo.id} • {userInfo.department} Department
                     </p>
@@ -438,29 +512,38 @@ export default function StudentDashboard() {
                   <CardTitle className="text-sm font-medium">Total Events</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{registeredEvents.length + attendedEvents.length}</div>
-                  <p className="text-xs text-muted-foreground">Registered this semester</p>
-                  <Progress value={60} className="mt-2 h-1" />
+                  <div className="text-2xl font-bold">{stats.totalEvents}</div>
+                  <p className="text-xs text-muted-foreground">Events you're involved in</p>
+                  <Progress 
+                    value={(stats.totalEvents / 10) * 100} 
+                    className="mt-2 h-1" 
+                  />
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Badges Earned</CardTitle>
+                  <CardTitle className="text-sm font-medium">Registered Events</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">5</div>
-                  <p className="text-xs text-muted-foreground">Active participant</p>
-                  <Progress value={50} className="mt-2 h-1" />
+                  <div className="text-2xl font-bold">{stats.registeredEvents}</div>
+                  <p className="text-xs text-muted-foreground">Successfully registered</p>
+                  <Progress 
+                    value={(stats.registeredEvents / stats.totalEvents) * 100 || 0} 
+                    className="mt-2 h-1" 
+                  />
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Feedback Given</CardTitle>
+                  <CardTitle className="text-sm font-medium">Waitlisted Events</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{feedbackEvents.length}</div>
-                  <p className="text-xs text-muted-foreground">Average rating: 4.2/5</p>
-                  <Progress value={80} className="mt-2 h-1" />
+                  <div className="text-2xl font-bold">{stats.waitlistedEvents}</div>
+                  <p className="text-xs text-muted-foreground">Waiting for confirmation</p>
+                  <Progress 
+                    value={(stats.waitlistedEvents / stats.totalEvents) * 100 || 0} 
+                    className="mt-2 h-1" 
+                  />
                 </CardContent>
               </Card>
               <Card>
@@ -468,9 +551,12 @@ export default function StudentDashboard() {
                   <CardTitle className="text-sm font-medium">Top Category</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">Academic</div>
-                  <p className="text-xs text-muted-foreground">7 events attended</p>
-                  <Progress value={70} className="mt-2 h-1" />
+                  <div className="text-2xl font-bold">{stats.topCategory}</div>
+                  <p className="text-xs text-muted-foreground">Most frequent category</p>
+                  <Progress 
+                    value={75} 
+                    className="mt-2 h-1" 
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -481,36 +567,34 @@ export default function StudentDashboard() {
               <Tabs defaultValue="registered">
                 <TabsList className="mb-4">
                   <TabsTrigger value="registered">Registered</TabsTrigger>
-                  <TabsTrigger value="attended">Attended</TabsTrigger>
                   <TabsTrigger value="waitlisted">Waitlisted</TabsTrigger>
-                  <TabsTrigger value="feedback">Feedback</TabsTrigger>
                 </TabsList>
                 <TabsContent value="registered">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {registeredEvents.map((event) => (
-                      <EventCard key={event.id} event={event} />
-                    ))}
-                  </div>
-                </TabsContent>
-                <TabsContent value="attended">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {attendedEvents.map((event) => (
-                      <EventCard key={event.id} event={event} />
-                    ))}
+                    {myEvents
+                      .filter(event => event.status === 'registered')
+                      .map((event) => (
+                        <EventCard key={event.id} event={event} />
+                      ))}
+                    {myEvents.filter(event => event.status === 'registered').length === 0 && (
+                      <div className="col-span-full text-center py-8 text-muted-foreground">
+                        No registered events found
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
                 <TabsContent value="waitlisted">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {waitlistedEvents.map((event) => (
-                      <EventCard key={event.id} event={event} />
-                    ))}
-                  </div>
-                </TabsContent>
-                <TabsContent value="feedback">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {feedbackEvents.map((event) => (
-                      <EventCard key={event.id} event={event} />
-                    ))}
+                    {myEvents
+                      .filter(event => event.status === 'waitlisted')
+                      .map((event) => (
+                        <EventCard key={event.id} event={event} />
+                      ))}
+                    {myEvents.filter(event => event.status === 'waitlisted').length === 0 && (
+                      <div className="col-span-full text-center py-8 text-muted-foreground">
+                        No waitlisted events found
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
               </Tabs>
@@ -547,91 +631,49 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Card className="overflow-hidden">
-                  <div className="aspect-video relative">
-                    <Image
-                      src="/placeholder.svg?height=160&width=320"
-                      alt="AI Workshop"
-                      fill
-                      className="object-cover"
-                    />
-                    <Badge className="absolute right-2 top-2 bg-primary">Academic</Badge>
-                  </div>
-                  <CardHeader className="p-4">
-                    <CardTitle className="line-clamp-1 text-lg">AI Workshop Series</CardTitle>
-                    <CardDescription className="flex items-center gap-1 text-xs">
-                      <Calendar className="h-3 w-3" />
-                      May 20, 2025 • 1:00 PM
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <p className="line-clamp-2 text-sm text-muted-foreground">
-                      Learn about the latest advancements in artificial intelligence and machine learning.
-                    </p>
-                  </CardContent>
-                  <CardFooter className="p-4 pt-0 flex items-center justify-between">
-                    <Badge variant="outline">50 Seats Available</Badge>
-                    <Button size="sm">Register</Button>
-                  </CardFooter>
-                </Card>
-
-                <Card className="overflow-hidden">
-                  <div className="aspect-video relative">
-                    <Image
-                      src="/placeholder.svg?height=160&width=320"
-                      alt="Sports Tournament"
-                      fill
-                      className="object-cover"
-                    />
-                    <Badge className="absolute right-2 top-2 bg-green-500">Sports</Badge>
-                  </div>
-                  <CardHeader className="p-4">
-                    <CardTitle className="line-clamp-1 text-lg">Inter-Department Football Tournament</CardTitle>
-                    <CardDescription className="flex items-center gap-1 text-xs">
-                      <Calendar className="h-3 w-3" />
-                      May 25-30, 2025 • Sports Complex
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <p className="line-clamp-2 text-sm text-muted-foreground">
-                      Annual football tournament between different departments. Register your team now!
-                    </p>
-                  </CardContent>
-                  <CardFooter className="p-4 pt-0 flex items-center justify-between">
-                    <Badge variant="outline">Team Registration Open</Badge>
-                    <Button size="sm">Register</Button>
-                  </CardFooter>
-                </Card>
-
-                <Card className="overflow-hidden">
-                  <div className="aspect-video relative">
-                    <Image
-                      src="/placeholder.svg?height=160&width=320"
-                      alt="Cultural Festival"
-                      fill
-                      className="object-cover"
-                    />
-                    <Badge className="absolute right-2 top-2 bg-orange-500">Social</Badge>
-                  </div>
-                  <CardHeader className="p-4">
-                    <CardTitle className="line-clamp-1 text-lg">Cultural Festival 2025</CardTitle>
-                    <CardDescription className="flex items-center gap-1 text-xs">
-                      <Calendar className="h-3 w-3" />
-                      June 5, 2025 • Student Center
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <p className="line-clamp-2 text-sm text-muted-foreground">
-                      Experience diverse cultures through music, dance, food, and art exhibitions.
-                    </p>
-                  </CardContent>
-                  <CardFooter className="p-4 pt-0 flex items-center justify-between">
-                    <Badge variant="outline">Open to All</Badge>
-                    <Button size="sm">Register</Button>
-                  </CardFooter>
-                </Card>
-              </div>
+              {loading ? (
+                <div className="flex justify-center items-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                </div>
+              ) : error ? (
+                <div className="text-center text-red-500 p-4">
+                  {error}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {events.map((event) => (
+                    <Card key={event.id} className="overflow-hidden">
+                      <div className="aspect-video relative">
+                        <Image
+                          src={event.images?.[0] || "/placeholder.svg"}
+                          alt={event.title}
+                          fill
+                          className="object-cover"
+                        />
+                        <Badge className="absolute right-2 top-2 bg-primary">{event.category}</Badge>
+                      </div>
+                      <CardHeader className="p-4">
+                        <CardTitle className="line-clamp-1 text-lg">{event.title}</CardTitle>
+                        <CardDescription className="flex items-center gap-1 text-xs">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(event.date).toLocaleDateString()} • {event.startTime}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <p className="line-clamp-2 text-sm text-muted-foreground">
+                          {event.description}
+                        </p>
+                      </CardContent>
+                      <CardFooter className="p-4 pt-0 flex items-center justify-between">
+                        <Badge variant="outline">
+                          {event.capacity - (event.currentAttendees || 0)} Seats Available
+                        </Badge>
+                        <Button size="sm">Register</Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              )}
 
               <div className="mt-4 text-center">
                 <Button variant="outline">View All Events</Button>

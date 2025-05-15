@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 
 export default function SignInForm() {
@@ -28,36 +29,26 @@ export default function SignInForm() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email.trim(),
-          password: formData.password,
-        }),
+      const result = await signIn('credentials', {
+        email: formData.email.trim(),
+        password: formData.password,
+        redirect: false,
       });
 
-      const data = await response.json();
-      console.log(data.role);
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Sign in failed');
+      if (result?.error) {
+        throw new Error(result.error);
       }
 
-      // Store the token in localStorage
-      localStorage.setItem('token', data.token);
-      
       // Redirect based on user role
-      if (data.user.role === 'EVENT_ORGANIZER') {
-        router.push('/dashboard/organizer/dashboard');
-      }
-      else if (data.user.role === 'STUDENT') {
-        router.push('/dashboard/student/dashboard');
-      }
-      else {
-        router.push('/dashboard/admin/dashboard');
+      const response = await fetch('/api/auth/me');
+      const data = await response.json();
+
+      if (data.role === 'EVENT_ORGANIZER') {
+        router.push('/organizer/dashboard');
+      } else if (data.role === 'STUDENT') {
+        router.push('/student/dashboard');
+      } else {
+        router.push('/admin/dashboard');
       }
     } catch (error) {
       setError(error.message || 'An error occurred during sign in');

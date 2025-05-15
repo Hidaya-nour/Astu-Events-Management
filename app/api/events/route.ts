@@ -172,9 +172,53 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    
+    // Extract filter parameters
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const category = searchParams.get('category');
+    const eventType = searchParams.get('eventType');
+    const status = searchParams.get('status');
+    const search = searchParams.get('search');
+
+    // Build filter conditions
+    const where: any = {};
+
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) {
+        where.date.gte = new Date(startDate);
+      }
+      if (endDate) {
+        where.date.lte = new Date(endDate);
+      }
+    }
+
+    if (category) {
+      where.category = category;
+    }
+
+    if (eventType) {
+      where.eventType = eventType;
+    }
+
+    if (status) {
+      where.approvalStatus = status;
+    }
+
+    if (search) {
+      const searchLower = search.toLowerCase();
+      where.OR = [
+        { title: { contains: searchLower } },
+        { description: { contains: searchLower } },
+      ];
+    }
+
     const events = await prisma.event.findMany({
+      where,
       orderBy: {
         date: "desc",
       },
@@ -185,7 +229,7 @@ export async function GET() {
           },
         },
       },
-    })
+    });
 
     const formattedEvents = events.map((event) => ({
       id: event.id,
@@ -198,11 +242,11 @@ export async function GET() {
       status: event.approvalStatus,
       capacity: event.capacity,
       currentAttendees: event._count.registrations,
-    }))
+    }));
 
-    return NextResponse.json(formattedEvents)
+    return NextResponse.json(formattedEvents);
   } catch (error) {
-    console.error("[EVENTS_GET]", error)
-    return new NextResponse("Internal Error", { status: 500 })
+    console.error("[EVENTS_GET]", error);
+    return new NextResponse("Internal Error", { status: 500 });
   }
 } 
