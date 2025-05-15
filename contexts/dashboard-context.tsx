@@ -30,27 +30,27 @@ const ORGANIZER_SIDEBAR_ITEMS: SidebarItem[] = [
   {
     title: "Dashboard",
     icon: "home",
-    href: "/dashboard/organizer/dashboard",
+    href: "/organizer",
   },
   {
     title: "My Events",
     icon: "calendar-check",
-    href: "/dashboard/organizer/events",
+    href: "/organizer/events",
   },
   {
     title: "Attendees",
     icon: "users",
-    href: "/dashboard/organizer/attendees",
+    href: "/organizer/attendees",
   },
   {
     title: "Feedback",
     icon: "file-edit",
-    href: "/dashboard/organizer/feedback",
+    href: "/organizer/feedback",
   },
   {
     title: "Settings",
     icon: "download",
-    href: "/dashboard/organizer/settings",
+    href: "/organizer/settings",
   },
 ]
 
@@ -58,22 +58,22 @@ const STUDENT_SIDEBAR_ITEMS: SidebarItem[] = [
   {
     title: "Dashboard",
     icon: "home",
-    href: "/dashboard/student/dashboard",
+    href: "/student",
   },
   {
     title: "My Events",
     icon: "calendar-check",
-    href: "/dashboard/student/events",
+    href: "/student/events",
   },
   {
     title: "My Registrations",
     icon: "users",
-    href: "/dashboard/student/registrations",
+    href: "/student/registrations",
   },
   {
     title: "Settings",
     icon: "download",
-    href: "/dashboard/student/settings",
+    href: "/student/settings",
   },
 ]
 
@@ -81,22 +81,22 @@ const ADMIN_SIDEBAR_ITEMS: SidebarItem[] = [
   {
     title: "Dashboard",
     icon: "home",
-    href: "/dashboard/admin/dashboard",
+    href: "/admin",
   },
   {
     title: "Events",
     icon: "calendar-check",
-    href: "/dashboard/admin/events",
+    href: "/admin/events",
   },
   {
     title: "Users",
     icon: "users",
-    href: "/dashboard/admin/users",
+    href: "/admin/users",
   },
   {
     title: "Settings",
     icon: "download",
-    href: "/dashboard/admin/settings",
+    href: "/admin/settings",
   },
 ]
 

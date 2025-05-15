@@ -183,6 +183,9 @@ export async function GET(request: Request) {
     const eventType = searchParams.get('eventType');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const skip = (page - 1) * limit;
 
     // Build filter conditions
     const where: any = {};
@@ -217,6 +220,10 @@ export async function GET(request: Request) {
       ];
     }
 
+    // Get total count for pagination
+    const total = await prisma.event.count({ where });
+
+    // Get paginated events
     const events = await prisma.event.findMany({
       where,
       orderBy: {
@@ -228,7 +235,15 @@ export async function GET(request: Request) {
             registrations: true,
           },
         },
+        createdBy: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
       },
+      skip,
+      take: limit,
     });
 
     const formattedEvents = events.map((event) => ({
@@ -242,9 +257,16 @@ export async function GET(request: Request) {
       status: event.approvalStatus,
       capacity: event.capacity,
       currentAttendees: event._count.registrations,
+      createdBy: event.createdBy,
     }));
 
-    return NextResponse.json(formattedEvents);
+    return NextResponse.json({
+      events: formattedEvents,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
     console.error("[EVENTS_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });

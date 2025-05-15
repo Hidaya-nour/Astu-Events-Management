@@ -18,6 +18,8 @@ export async function GET() {
       email: session.user.email,
       name: session.user.name,
       role: session.user.role,
+      department: session.user.department,
+      year: session.user.year,
     });
   } catch (error) {
     console.error("[AUTH_ME]", error);

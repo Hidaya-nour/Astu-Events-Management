@@ -13,6 +13,8 @@ declare module "next-auth" {
       email: string;
       name: string;
       role: string;
+      department?: string;
+      year?: number;
       image?: string;
     }
   }
@@ -21,6 +23,8 @@ declare module "next-auth" {
     email: string;
     name: string;
     role: string;
+    department?: string;
+    year?: number;
     image?: string;
   }
 }
@@ -42,6 +46,15 @@ export const authOptions: NextAuthOptions = {
           where: {
             email: credentials.email,
           },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            department: true,
+            year: true,
+            password: true,
+          },
         });
 
         if (!user) {
@@ -57,12 +70,8 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        return {
-          id: user.id.toString(),
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        };
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
       },
     }),
   ],
@@ -78,6 +87,8 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.department = user.department;
+        token.year = user.year;
       }
       return token;
     },
@@ -85,6 +96,8 @@ export const authOptions: NextAuthOptions = {
       if (token) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.department = token.department as string | undefined;
+        session.user.year = token.year as number | undefined;
       }
       return session;
     },
