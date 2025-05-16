@@ -26,12 +26,15 @@ const EVENT_CATEGORIES = [
   "Academic",
   "Sports",
   "Cultural",
-  "Technical",
+  "Technology",
   "Workshop",
   "Seminar",
   "Conference",
+  "Competition",
+  "Career",
   "Other"
 ]
+
 
 const EVENT_TYPES = [
   { value: "IN_PERSON", label: "In Person" },

@@ -27,31 +27,65 @@ import {
 } from "@/components/ui/pagination"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Card, CardContent } from "@/components/ui/card"
 
 interface Event {
   id: string
   title: string
+  description: string
   date: string
   startTime: string
   endTime: string
   location: string
   category: string
-  status: string
+  eventType: string
+  approvalStatus: string
   capacity: number
-  currentAttendees: number
-  createdBy?: {
-    name: string
-    email: string
+  _count?: {
+    registrations: number
+  }
+}
+
+interface FilterState {
+  status: {
+    approved: boolean
+    pending: boolean
+    rejected: boolean
+    cancelled: boolean
+  }
+  categories: {
+    technology: boolean
+    workshop: boolean
+    competition: boolean
+    career: boolean
+    academic: boolean
+    cultural: boolean
+    sports: boolean
+    Academic: boolean
+    Seminar: boolean
+    Conference: boolean
+    Workshop: boolean
+  }
+  
+  organizer: string
+  timePeriod: string
+  dateRange: {
+    from?: Date
+    to?: Date
+  }
+  featured: {
+    featured: boolean
+    notFeatured: boolean
   }
 }
 
 interface AdminEventsTableProps {
-  searchQuery?: string
-  category?: string | null
-  status?: string | null
+  searchQuery: string
+  sortBy: string
+  filters: FilterState
 }
 
-export function AdminEventsTable({ searchQuery, category, status }: AdminEventsTableProps) {
+export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTableProps) {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -65,44 +99,70 @@ export function AdminEventsTable({ searchQuery, category, status }: AdminEventsT
     const fetchEvents = async () => {
       try {
         setLoading(true)
-        const params = new URLSearchParams()
-        if (searchQuery) params.append('search', searchQuery)
-        if (category) params.append('category', category)
-        if (status) params.append('status', status)
-        params.append('page', currentPage.toString())
-        params.append('limit', eventsPerPage.toString())
+        const queryParams = new URLSearchParams()
+        if (searchQuery) {
+          queryParams.append('search', searchQuery)
+        }
+        if (sortBy) {
+          queryParams.append('sort', sortBy)
+        }
 
-        console.log('Fetching events with params:', params.toString())
-        const response = await fetch(`/api/events?${params.toString()}`)
-        console.log('Response status:', response.status)
+        // Add filter parameters
+        const statusFilters = Object.entries(filters.status)
+          .filter(([_, value]) => value)
+          .map(([key]) => key.toUpperCase())
+        if (statusFilters.length > 0) {
+          queryParams.append('status', statusFilters.join(','))
+        }
+
+        const categoryFilters = Object.entries(filters.categories)
+          .filter(([_, value]) => value)
+          .map(([key]) => key.toUpperCase())
+        if (categoryFilters.length > 0) {
+          queryParams.append('category', categoryFilters.join(','))
+        }
+
+        if (filters.organizer !== 'all') {
+          queryParams.append('organizer', filters.organizer)
+        }
+
+        if (filters.timePeriod !== 'all') {
+          queryParams.append('timePeriod', filters.timePeriod)
+        }
+
+        if (filters.dateRange.from) {
+          queryParams.append('startDate', filters.dateRange.from.toISOString())
+        }
+        if (filters.dateRange.to) {
+          queryParams.append('endDate', filters.dateRange.to.toISOString())
+        }
+
+        if (filters.featured.featured) {
+          queryParams.append('featured', 'true')
+        }
+        if (filters.featured.notFeatured) {
+          queryParams.append('featured', 'false')
+        }
+        const url = `/api/events?${queryParams.toString()}`;
+        console.log("📡 Fetching events from:", url);
         
+        const response = await fetch(`/api/events?${queryParams.toString()}`)
         if (!response.ok) {
           throw new Error(`Failed to fetch events: ${response.status}`)
         }
-        
         const data = await response.json()
-        console.log('Received data:', data)
-
-        // Handle both array and object responses
-        const eventsData = Array.isArray(data) ? data : data.events || []
-        const totalCount = Array.isArray(data) ? data.length : data.total || 0
-
-        setEvents(eventsData)
-        setTotalEvents(totalCount)
-        setTotalPages(Math.ceil(totalCount / eventsPerPage))
+        setEvents(data.events)
+        setTotalEvents(data.total || 0)
+        setTotalPages(Math.ceil(data.total / eventsPerPage))
       } catch (err) {
-        console.error('Error fetching events:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch events')
-        setEvents([])
-        setTotalEvents(0)
-        setTotalPages(1)
       } finally {
         setLoading(false)
       }
     }
 
     fetchEvents()
-  }, [searchQuery, category, status, currentPage])
+  }, [searchQuery, sortBy, filters])
 
   const toggleEventSelection = (eventId: string) => {
     setSelectedEvents((prev) => (prev.includes(eventId) ? prev.filter((id) => id !== eventId) : [...prev, eventId]))
@@ -181,13 +241,13 @@ export function AdminEventsTable({ searchQuery, category, status }: AdminEventsT
     )
   }
 
-  if (!events || events.length === 0) {
+  if (events.length === 0) {
     return (
       <div className="space-y-4">
         <div className="border rounded-lg p-8">
           <div className="text-center text-muted-foreground">
             <p>No events found</p>
-            <p className="text-sm">Try adjusting your filters or search query</p>
+            <p className="text-sm">Try adjusting your search query</p>
           </div>
         </div>
       </div>
@@ -255,11 +315,6 @@ export function AdminEventsTable({ searchQuery, category, status }: AdminEventsT
                 <TableCell>
                   <div className="flex flex-col">
                     <span className="font-medium">{event.title}</span>
-                    {event.createdBy && (
-                      <span className="text-sm text-muted-foreground">
-                        {event.createdBy.name}
-                      </span>
-                    )}
                   </div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
@@ -275,12 +330,12 @@ export function AdminEventsTable({ searchQuery, category, status }: AdminEventsT
                   {getCategoryBadge(event.category)}
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
-                  {getStatusBadge(event.status)}
+                  {getStatusBadge(event.approvalStatus)}
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{event.currentAttendees} / {event.capacity}</span>
+                    <span>{event._count?.registrations || 0} / {event.capacity}</span>
                   </div>
                 </TableCell>
                 <TableCell className="text-right">

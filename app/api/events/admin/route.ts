@@ -48,9 +48,9 @@ export async function GET() {
 
     // Get pending approvals count (events with PENDING status)
     const pendingApprovals = await prisma.event.count({
-      where: {
-        approvalStatus: "PENDING"
-      }
+      // where: {
+      //   ApprovalStatus: "PENDING"
+      // }
     }).catch(error => {
       console.error("Error counting pending approvals:", error)
       throw new Error("Failed to count pending approvals")

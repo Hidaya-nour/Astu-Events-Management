@@ -75,7 +75,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('/api/admin/stats')
+        const response = await fetch('/api/events/admin/stats')
         if (!response.ok) {
           const errorData = await response.json().catch(() => null)
           throw new Error(errorData?.details || `Failed to fetch stats: ${response.status}`)

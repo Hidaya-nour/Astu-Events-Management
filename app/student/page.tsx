@@ -137,8 +137,8 @@ export default function StudentDashboard() {
   // Calculate statistics from myEvents
   const stats = {
     totalEvents: myEvents.length,
-    registeredEvents: myEvents.filter(event => event.status === 'registered').length,
-    waitlistedEvents: myEvents.filter(event => event.status === 'waitlisted').length,
+    registeredEvents: myEvents.filter(event => event.status === 'CONFIRMED').length,
+    waitlistedEvents: myEvents.filter(event => event.status === 'WAITLISTED').length,
     topCategory: (() => {
       if (myEvents.length === 0) return 'None';
       
@@ -166,14 +166,26 @@ export default function StudentDashboard() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await fetch('/api/events')
+        setLoading(true)
+        const queryParams = new URLSearchParams({
+          sort: 'upcoming',
+          limit: '6'
+        })
+        
+        const response = await fetch(`/api/events?${queryParams.toString()}`)
         if (!response.ok) {
           throw new Error('Failed to fetch events')
         }
-        const data = await response.json()
-        setEvents(data)
+        const data = await response.json()    
+        // The API returns events in a paginated format
+        if (data && Array.isArray(data.events)) {
+          setEvents(data.events)
+        } else {
+          setEvents([])
+        }
       } catch (err) {
         setError(err.message)
+        setEvents([])
       } finally {
         setLoading(false)
       }
@@ -181,14 +193,15 @@ export default function StudentDashboard() {
 
     const fetchMyEvents = async () => {
       try {
-        const response = await fetch('/api/events/my-events')
+        const response = await fetch('/api/events/student')
         if (!response.ok) {
           throw new Error('Failed to fetch my events')
         }
         const data = await response.json()
-        setMyEvents(data)
+        setMyEvents(Array.isArray(data) ? data : [])
       } catch (err) {
         console.error('Error fetching my events:', err)
+        setMyEvents([])
       }
     }
 
@@ -248,10 +261,6 @@ export default function StudentDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalEvents}</div>
               <p className="text-xs text-muted-foreground">Events you're involved in</p>
-              <Progress 
-                value={(stats.totalEvents / 10) * 100} 
-                className="mt-2 h-1" 
-              />
             </CardContent>
           </Card>
           <Card>
@@ -260,11 +269,7 @@ export default function StudentDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.registeredEvents}</div>
-              <p className="text-xs text-muted-foreground">Successfully registered</p>
-              <Progress 
-                value={(stats.registeredEvents / stats.totalEvents) * 100 || 0} 
-                className="mt-2 h-1" 
-              />
+              <p className="text-xs text-muted-foreground">Events you're registered for</p>
             </CardContent>
           </Card>
           <Card>
@@ -273,11 +278,7 @@ export default function StudentDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.waitlistedEvents}</div>
-              <p className="text-xs text-muted-foreground">Waiting for confirmation</p>
-              <Progress 
-                value={(stats.waitlistedEvents / stats.totalEvents) * 100 || 0} 
-                className="mt-2 h-1" 
-              />
+              <p className="text-xs text-muted-foreground">Events you're waitlisted for</p>
             </CardContent>
           </Card>
           <Card>
@@ -286,52 +287,40 @@ export default function StudentDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.topCategory}</div>
-              <p className="text-xs text-muted-foreground">Most frequent category</p>
-              <Progress 
-                value={75} 
-                className="mt-2 h-1" 
-              />
+              <p className="text-xs text-muted-foreground">Most frequent event category</p>
             </CardContent>
           </Card>
         </div>
 
         {/* My Events Section */}
-        <div>
-          <h2 className="text-xl font-bold mb-4">My Events</h2>
-          <Tabs defaultValue="registered">
-            <TabsList className="mb-4">
-              <TabsTrigger value="registered">Registered</TabsTrigger>
-              <TabsTrigger value="waitlisted">Waitlisted</TabsTrigger>
-            </TabsList>
-            <TabsContent value="registered">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {myEvents
-                  .filter(event => event.status === 'registered')
-                  .map((event) => (
-                    <EventCard key={event.id} event={event} />
-                  ))}
-                {myEvents.filter(event => event.status === 'registered').length === 0 && (
-                  <div className="col-span-full text-center py-8 text-muted-foreground">
-                    No registered events found
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-            <TabsContent value="waitlisted">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {myEvents
-                  .filter(event => event.status === 'waitlisted')
-                  .map((event) => (
-                    <EventCard key={event.id} event={event} />
-                  ))}
-                {myEvents.filter(event => event.status === 'waitlisted').length === 0 && (
-                  <div className="col-span-full text-center py-8 text-muted-foreground">
-                    No waitlisted events found
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">My Events</h2>
+            <Button variant="outline" size="sm">
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
+            </Button>
+          </div>
+          
+          {loading ? (
+            <div className="flex items-center justify-center h-40">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            </div>
+          ) : error ? (
+            <div className="text-center text-red-500 p-4">
+              {error}
+            </div>
+          ) : myEvents.length === 0 ? (
+            <div className="text-center text-muted-foreground p-4">
+              You haven't registered for any events yet.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {myEvents.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Discover Events Section */}
@@ -373,17 +362,21 @@ export default function StudentDashboard() {
             <div className="text-center text-red-500 p-4">
               {error}
             </div>
+          ) : !Array.isArray(events) || events.length === 0 ? (
+            <div className="text-center text-muted-foreground p-4">
+              No events available at the moment.
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {events.map((event) => (
                 <Card key={event.id} className="overflow-hidden">
                   <div className="aspect-video relative">
-                    <Image
-                      src={event.images?.[0] || "/placeholder.svg"}
+                    {/* <Image
+                      src={event.images ? event.images.split(',')[0] : "/placeholder.svg"}
                       alt={event.title}
                       fill
                       className="object-cover"
-                    />
+                    /> */}
                     <Badge className="absolute right-2 top-2 bg-primary">{event.category}</Badge>
                   </div>
                   <CardHeader className="p-4">
@@ -397,10 +390,17 @@ export default function StudentDashboard() {
                     <p className="line-clamp-2 text-sm text-muted-foreground">
                       {event.description}
                     </p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {event.tags && event.tags.split(',').map((tag) => (
+                        <Badge key={tag} variant="outline" className="text-xs">
+                          {tag.trim()}
+                        </Badge>
+                      ))}
+                    </div>
                   </CardContent>
                   <CardFooter className="p-4 pt-0 flex items-center justify-between">
                     <Badge variant="outline">
-                      {event.capacity - (event.currentAttendees || 0)} Seats Available
+                      {event.capacity - (event._count?.registrations || 0)} Seats Available
                     </Badge>
                     <Button size="sm">Register</Button>
                   </CardFooter>

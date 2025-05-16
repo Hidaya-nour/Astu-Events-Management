@@ -5,6 +5,9 @@ import { authOptions } from "@/lib/auth"
 
 const prisma = new PrismaClient()
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -85,12 +88,25 @@ export async function GET() {
     const recentOrganizations = await prisma.user.findMany({
       take: 5,
       where: {
-        role: "EVENT_ORGANIZER"
+        role: "EVENT_ORGANIZER",
+        createdAt: {
+          gt: new Date('2000-01-01') // Filter out any dates before year 2000
+        }
       },
       orderBy: {
         createdAt: 'desc'
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+        role: true
       }
-    })
+    }).catch(error => {
+      console.error('Error fetching recent organizations:', error);
+      return []; // Return empty array if there's an error
+    });
 
     return NextResponse.json({
       totalUsers,

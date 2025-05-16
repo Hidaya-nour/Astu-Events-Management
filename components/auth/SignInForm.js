@@ -48,7 +48,7 @@ export default function SignInForm() {
       } else if (data.role === 'STUDENT') {
         router.push('/student');
       } else {
-        router.push('/admin');
+        router.push('/admin/');
       }
     } catch (error) {
       setError(error.message || 'An error occurred during sign in');

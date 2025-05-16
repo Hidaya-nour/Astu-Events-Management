@@ -53,8 +53,8 @@ export default function OrganizerEventsPage() {
   }, [])
 
   useEffect(() => {
-    // Apply search and sort to filtered events
-    const searchResults = filteredEvents.filter((event) =>
+    // Apply search and sort to events
+    const searchResults = events.filter((event) =>
       event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.category.toLowerCase().includes(searchQuery.toLowerCase())
@@ -76,7 +76,7 @@ export default function OrganizerEventsPage() {
     })
 
     setFilteredEvents(sortedResults)
-  }, [searchQuery, sortBy, filteredEvents])
+  }, [searchQuery, sortBy, events])
 
   // Calculate stats based on filtered events
   const stats = {

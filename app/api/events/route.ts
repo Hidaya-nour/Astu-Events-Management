@@ -95,6 +95,9 @@ export async function POST(request: Request) {
     }
 
     // Create event in database
+    const role = session?.user?.role
+    const approvalStatus = role === 'STUDENT' ? 'PENDING' : 'APPROVED';
+
     const event = await prisma.event.create({
       data: {
         title: data.title,
@@ -105,6 +108,7 @@ export async function POST(request: Request) {
         location: data.location,
         venue: data.venue,
         category: data.category,
+        approvalStatus,
         capacity: data.capacity,
         registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline) : null,
         isPublic: data.isPublic,
@@ -179,14 +183,26 @@ export async function GET(request: Request) {
     // Extract filter parameters
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const category = searchParams.get('category');
+    const category = searchParams.get('category')?.split(',').filter(Boolean) || [];
     const eventType = searchParams.get('eventType');
-    const status = searchParams.get('status');
-    const search = searchParams.get('search');
+    const status = searchParams.get('status')?.split(',').filter(Boolean) || [];
+    const search = searchParams.get('search') || '';
+    const sort = searchParams.get('sort') || 'newest';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
 
+    console.log({
+      startDate,
+      endDate,
+      category,
+      eventType,
+      status,
+      search,
+      sort,
+      
+    });
+    
     // Build filter conditions
     const where: any = {};
 
@@ -200,24 +216,55 @@ export async function GET(request: Request) {
       }
     }
 
-    if (category) {
-      where.category = category;
+    if (category.length > 0) {
+      where.category = {
+        in: category.map(cat => cat.trim().toUpperCase())
+      };
     }
 
     if (eventType) {
-      where.eventType = eventType;
+      where.eventType = eventType.toUpperCase();
     }
 
-    if (status) {
-      where.approvalStatus = status;
+    if (status.length > 0) {
+      where.approvalStatus = {
+        in: status.map(s => s.trim().toUpperCase())
+      };
     }
 
     if (search) {
-      const searchLower = search.toLowerCase();
       where.OR = [
-        { title: { contains: searchLower } },
-        { description: { contains: searchLower } },
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
       ];
+    }
+
+    // Handle sorting
+    let orderBy: any = {};
+    switch (sort) {
+      case 'newest':
+        orderBy = { createdAt: 'desc' };
+        break;
+      case 'oldest':
+        orderBy = { createdAt: 'asc' };
+        break;
+      case 'upcoming':
+        where.date = { gte: new Date() };
+        orderBy = { date: 'asc' };
+        break;
+      case 'past':
+        where.date = { lt: new Date() };
+        orderBy = { date: 'desc' };
+        break;
+      case 'attendees':
+        orderBy = { registrations: { _count: 'desc' } };
+        break;
+      case 'pending':
+        where.approvalStatus = 'PENDING';
+        orderBy = { createdAt: 'desc' };
+        break;
+      default:
+        orderBy = { createdAt: 'desc' };
     }
 
     // Get total count for pagination
@@ -226,9 +273,7 @@ export async function GET(request: Request) {
     // Get paginated events
     const events = await prisma.event.findMany({
       where,
-      orderBy: {
-        date: "desc",
-      },
+      orderBy,
       include: {
         _count: {
           select: {
@@ -246,29 +291,19 @@ export async function GET(request: Request) {
       take: limit,
     });
 
-    const formattedEvents = events.map((event) => ({
-      id: event.id,
-      title: event.title,
-      date: event.date,
-      startTime: event.startTime,
-      endTime: event.endTime,
-      location: event.location,
-      category: event.category,
-      status: event.approvalStatus,
-      capacity: event.capacity,
-      currentAttendees: event._count.registrations,
-      createdBy: event.createdBy,
-    }));
-
     return NextResponse.json({
-      events: formattedEvents,
+      events,
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit)
     });
+
   } catch (error) {
-    console.error("[EVENTS_GET]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    console.error('Error fetching events:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
-} 
+}
