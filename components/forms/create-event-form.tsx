@@ -332,6 +332,8 @@ export function CreateEventForm() {
   }
 
   const nextTab = () => {
+
+    
     if (currentTab === "basic") setCurrentTab("details")
     else if (currentTab === "details") setCurrentTab("media")
     else if (currentTab === "media") setCurrentTab("settings")
@@ -780,9 +782,10 @@ export function CreateEventForm() {
           Previous
         </Button>
         {currentTab !== "settings" ? (
-          <Button type="button" onClick={nextTab}>
-            Next
-          </Button>
+         <button type="button" onClick={nextTab}>
+         Next
+       </button>
+       
         ) : (
           <Button type="submit" disabled={isLoading}>
             {isLoading ? (
