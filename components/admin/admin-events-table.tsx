@@ -28,6 +28,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Card, CardContent } from "@/components/ui/card"
+import { ViewEventDetails } from "./view-events-details"
+import { EditEventForm } from "./edit-event-form"
+import { DeleteEventDialog } from "./delete-event-dialog"
 
 interface Event {
   id: string
@@ -93,6 +96,10 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalEvents, setTotalEvents] = useState(0)
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const eventsPerPage = 10
 
   useEffect(() => {
@@ -212,6 +219,37 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
+  }
+
+  const handleViewEvent = (event: Event) => {
+    setSelectedEvent(event)
+    setViewDialogOpen(true)
+  }
+
+  const handleEditEvent = (eventId: string) => {
+    const event = events.find(e => e.id === eventId)
+    if (event) {
+      setSelectedEvent(event)
+      setEditDialogOpen(true)
+    }
+  }
+
+  const handleDeleteEvent = (eventId: string) => {
+    const event = events.find(e => e.id === eventId)
+    if (event) {
+      setSelectedEvent(event)
+      setDeleteDialogOpen(true)
+    }
+  }
+
+  const handleEventUpdated = (updatedEvent: Event) => {
+    setEvents(events.map(event => event.id === updatedEvent.id ? updatedEvent : event))
+    setEditDialogOpen(false)
+  }
+
+  const handleEventDeleted = (eventId: string) => {
+    setEvents(events.filter(event => event.id !== eventId))
+    setDeleteDialogOpen(false)
   }
 
   if (loading) {
@@ -349,11 +387,11 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewEvent(event)}>
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEditEvent(event.id)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Event
                       </DropdownMenuItem>
@@ -362,7 +400,10 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
                         Manage Attendees
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-red-600">
+                      <DropdownMenuItem 
+                        className="text-red-600"
+                        onClick={() => handleDeleteEvent(event.id)}
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Event
                       </DropdownMenuItem>
@@ -417,6 +458,85 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
           </PaginationContent>
         </Pagination>
       </div>
+
+      {/* View Dialog */}
+      <ViewEventDetails
+        event={selectedEvent}
+        isOpen={viewDialogOpen}
+        onClose={() => setViewDialogOpen(false)}
+        onEdit={handleEditEvent}
+        onDelete={handleDeleteEvent}
+        onApprove={async (eventId) => {
+          // Implement approve functionality
+          const response = await fetch(`/api/events/${eventId}/approve`, {
+            method: 'PUT',
+          })
+          if (response.ok) {
+            const updatedEvent = await response.json()
+            setEvents(events.map(event => event.id === updatedEvent.id ? updatedEvent : event))
+          }
+        }}
+        onReject={async (eventId) => {
+          // Implement reject functionality
+          const response = await fetch(`/api/events/${eventId}/reject`, {
+            method: 'PUT',
+          })
+          if (response.ok) {
+            const updatedEvent = await response.json()
+            setEvents(events.map(event => event.id === updatedEvent.id ? updatedEvent : event))
+          }
+        }}
+        onFeature={async (eventId, featured) => {
+          // Implement feature functionality
+          const response = await fetch(`/api/events/${eventId}/feature`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ featured }),
+          })
+          if (response.ok) {
+            const updatedEvent = await response.json()
+            setEvents(events.map(event => event.id === updatedEvent.id ? updatedEvent : event))
+          }
+        }}
+      />
+
+      {/* Edit Dialog */}
+      <EditEventForm
+        event={selectedEvent}
+        isOpen={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        onSave={async (eventId, data) => {
+          const response = await fetch(`/api/events/${eventId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+          })
+          if (response.ok) {
+            const updatedEvent = await response.json()
+            setEvents(events.map(event => event.id === updatedEvent.id ? updatedEvent : event))
+          }
+        }}
+      />
+
+      {/* Delete Dialog */}
+      <DeleteEventDialog
+        eventId={selectedEvent?.id || null}
+        eventTitle={selectedEvent?.title}
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={async (eventId) => {
+          const response = await fetch(`/api/events/${eventId}`, {
+            method: 'DELETE',
+          })
+          if (response.ok) {
+            setEvents(events.filter(event => event.id !== eventId))
+          }
+        }}
+      />
     </div>
   )
 }

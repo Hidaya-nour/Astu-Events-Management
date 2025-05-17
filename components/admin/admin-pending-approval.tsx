@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -9,64 +9,95 @@ import { format } from "date-fns"
 import Link from "next/link"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
-// Sample data - in a real app, this would come from your API
-const pendingEvents = [
-  {
-    id: "2",
-    title: "Workshop on AI and Machine Learning",
-    date: new Date("2025-06-05"),
-    time: "2:00 PM - 5:00 PM",
-    location: "Computer Lab",
-    category: "WORKSHOP",
-    organizer: {
-      id: "org2",
-      name: "AI Research Club",
-      avatar: "/placeholder.svg?height=32&width=32",
-    },
-    createdAt: new Date("2025-04-10"),
-  },
-  {
-    id: "5",
-    title: "Mobile App Development Workshop",
-    date: new Date("2025-07-10"),
-    time: "10:00 AM - 3:00 PM",
-    location: "Computer Lab",
-    category: "WORKSHOP",
-    organizer: {
-      id: "org4",
-      name: "Mobile Dev Club",
-      avatar: "/placeholder.svg?height=32&width=32",
-    },
-    createdAt: new Date("2025-04-12"),
-  },
-  {
-    id: "7",
-    title: "Entrepreneurship Seminar",
-    date: new Date("2025-06-20"),
-    time: "1:00 PM - 4:00 PM",
-    location: "Business School Auditorium",
-    category: "CAREER",
-    organizer: {
-      id: "org6",
-      name: "Business Club",
-      avatar: "/placeholder.svg?height=32&width=32",
-    },
-    createdAt: new Date("2025-04-15"),
-  },
-]
+interface Event {
+  id: string
+  title: string
+  date: Date
+  time: string
+  location: string
+  category: string
+  organizer: {
+    id: string
+    name: string
+    avatar?: string
+  }
+  createdAt: Date
+}
 
 export function AdminPendingApprovals() {
+  const [pendingEvents, setPendingEvents] = useState<Event[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [approvedEvents, setApprovedEvents] = useState<string[]>([])
   const [rejectedEvents, setRejectedEvents] = useState<string[]>([])
 
-  const handleApprove = (eventId: string) => {
-    setApprovedEvents((prev) => [...prev, eventId])
-    setRejectedEvents((prev) => prev.filter((id) => id !== eventId))
+  useEffect(() => {
+    const fetchPendingEvents = async () => {
+      try {
+        const response = await fetch('/api/events?status=PENDING&sort=newest')
+        if (!response.ok) {
+          throw new Error('Failed to fetch pending events')
+        }
+        const data = await response.json()
+        setPendingEvents(data.events.map((event: any) => ({
+          ...event,
+          date: new Date(event.date),
+          createdAt: new Date(event.createdAt)
+        })))
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch pending events')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPendingEvents()
+  }, [])
+
+  const handleApprove = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to approve event')
+      }
+
+      setApprovedEvents((prev) => [...prev, eventId])
+      setRejectedEvents((prev) => prev.filter((id) => id !== eventId))
+      // Remove the event from the pending list
+      setPendingEvents((prev) => prev.filter((event) => event.id !== eventId))
+    } catch (err) {
+      console.error('Error approving event:', err)
+      // You might want to show an error message to the user here
+    }
   }
 
-  const handleReject = (eventId: string) => {
-    setRejectedEvents((prev) => [...prev, eventId])
-    setApprovedEvents((prev) => prev.filter((id) => id !== eventId))
+  const handleReject = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to reject event')
+      }
+
+      setRejectedEvents((prev) => [...prev, eventId])
+      setApprovedEvents((prev) => prev.filter((id) => id !== eventId))
+      // Remove the event from the pending list
+      setPendingEvents((prev) => prev.filter((event) => event.id !== eventId))
+    } catch (err) {
+      console.error('Error rejecting event:', err)
+      // You might want to show an error message to the user here
+    }
   }
 
   const getCategoryBadge = (category: string) => {
@@ -78,6 +109,8 @@ export function AdminPendingApprovals() {
       ACADEMIC: { bg: "bg-indigo-100", text: "text-indigo-800" },
       CULTURAL: { bg: "bg-pink-100", text: "text-pink-800" },
       SPORTS: { bg: "bg-red-100", text: "text-red-800" },
+      SEMINAR: { bg: "bg-yellow-100", text: "text-yellow-800" },
+      CONFERENCE: { bg: "bg-teal-100", text: "text-teal-800" },
     }
 
     const style = categories[category] || { bg: "bg-gray-100", text: "text-gray-800" }
@@ -86,6 +119,25 @@ export function AdminPendingApprovals() {
       <Badge className={`${style.bg} ${style.text} hover:${style.bg}`}>
         {category.charAt(0) + category.slice(1).toLowerCase().replace("_", " ")}
       </Badge>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto" />
+        <p className="mt-2 text-muted-foreground">Loading pending events...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <XCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+        <h3 className="text-lg font-medium text-red-600">Error</h3>
+        <p className="text-muted-foreground">{error}</p>
+      </div>
     )
   }
 
@@ -170,7 +222,7 @@ export function AdminPendingApprovals() {
                           onClick={() => handleApprove(event.id)}
                         >
                           <CheckCircle className="h-4 w-2 mr-1" />
-                      
+                          Approve
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -188,7 +240,7 @@ export function AdminPendingApprovals() {
                           onClick={() => handleReject(event.id)}
                         >
                           <XCircle className="h-4 w-2 mr-1" />
-                        
+                          Reject
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -205,7 +257,9 @@ export function AdminPendingApprovals() {
 
       {pendingEvents.length > 0 && (
         <div className="flex justify-center">
-          <Button variant="outline">View All Pending Events</Button>
+          <Button variant="outline" asChild>
+            <Link href="/admin/events?status=PENDING">View All Pending Events</Link>
+          </Button>
         </div>
       )}
     </div>

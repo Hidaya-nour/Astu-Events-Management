@@ -406,7 +406,12 @@ export function AdminEventsFilter({ onFilterChange }: AdminEventsFilterProps) {
       <Separator />
 
       <Button className="w-full" onClick={() => onFilterChange(filters)}>Apply Filters</Button>
+      <Button variant="outline" className="w-full" onClick={handleReset}>
+        Reset
+      </Button>
      
     </div>
   )
 }
+
+
