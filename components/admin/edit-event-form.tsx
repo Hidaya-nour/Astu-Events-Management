@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -58,7 +58,7 @@ interface Event {
 }
 
 interface EditEventFormProps {
-  event: Event | null
+  event: Event
   isOpen: boolean
   onClose: () => void
   onSave: (eventId: string, data: EventFormValues) => Promise<void>
@@ -107,6 +107,7 @@ export function EditEventForm({
   onSave,
 }: EditEventFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -116,7 +117,7 @@ export function EditEventForm({
           description: event.description,
           date: new Date(event.date),
           startTime: event.startTime,
-          endTime: event.endTime,
+          endTime: event.endTime || "",
           location: event.location,
           category: event.category,
           eventType: event.eventType,
@@ -124,30 +125,40 @@ export function EditEventForm({
           capacity: event.capacity,
           featured: event.featured || false,
         }
-      : {
-          title: "",
-          description: "",
-          date: new Date(),
-          startTime: "09:00",
-          endTime: "17:00",
-          location: "",
-          category: "",
-          eventType: "",
-          approvalStatus: "PENDING",
-          capacity: 50,
-          featured: false,
-        },
+      : undefined,
   })
+
+  // Reset form when event changes
+  useEffect(() => {
+    if (event) {
+      form.reset({
+        title: event.title,
+        description: event.description,
+        date: new Date(event.date),
+        startTime: event.startTime,
+        endTime: event.endTime || "",
+        location: event.location,
+        category: event.category,
+        eventType: event.eventType,
+        approvalStatus: event.approvalStatus,
+        capacity: event.capacity,
+        featured: event.featured || false,
+      })
+    }
+  }, [event, form])
 
   async function onSubmit(data: EventFormValues) {
     if (!event) return
     
     setIsSubmitting(true)
+    setError(null)
+    
     try {
       await onSave(event.id, data)
       onClose()
     } catch (error) {
       console.error("Failed to save event:", error)
+      setError("Failed to save event. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -164,6 +175,12 @@ export function EditEventForm({
             Make changes to the event details below.
           </DialogDescription>
         </DialogHeader>
+
+        {error && (
+          <div className="bg-destructive/10 text-destructive p-3 rounded-md text-sm">
+            {error}
+          </div>
+        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -333,12 +350,9 @@ export function EditEventForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="CONFERENCE">Conference</SelectItem>
-                        <SelectItem value="SEMINAR">Seminar</SelectItem>
-                        <SelectItem value="WORKSHOP">Workshop</SelectItem>
-                        <SelectItem value="COMPETITION">Competition</SelectItem>
-                        <SelectItem value="EXHIBITION">Exhibition</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
+                        <SelectItem value="IN_PERSON">In Person</SelectItem>
+                        <SelectItem value="ONLINE">Online</SelectItem>
+                        <SelectItem value="HYBRID">Hybrid</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -386,7 +400,6 @@ export function EditEventForm({
                         <SelectItem value="PENDING">Pending</SelectItem>
                         <SelectItem value="APPROVED">Approved</SelectItem>
                         <SelectItem value="REJECTED">Rejected</SelectItem>
-                        <SelectItem value="CANCELLED">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

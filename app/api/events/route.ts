@@ -267,38 +267,42 @@ export async function GET(request: Request) {
         orderBy = { createdAt: 'desc' };
     }
 
-    // Get total count for pagination
-    const total = await prisma.event.count({ where });
+    // Fetch events with pagination and include organizer data
+    const [events, total] = await Promise.all([
+      prisma.event.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+      }),
+      prisma.event.count({ where }),
+    ]);
 
-    // Get paginated events
-    const events = await prisma.event.findMany({
-      where,
-      orderBy,
-      include: {
-        _count: {
-          select: {
-            registrations: true,
-          },
-        },
-        createdBy: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
+    // Transform the response to match the expected format
+    const transformedEvents = events.map(event => ({
+      ...event,
+      organizer: {
+        id: event.createdBy.id,
+        name: event.createdBy.name,
+        avatar: event.createdBy.image,
       },
-      skip,
-      take: limit,
-    });
+    }));
 
     return NextResponse.json({
-      events,
+      events: transformedEvents,
       total,
       page,
-      limit,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     });
-
   } catch (error) {
     console.error('Error fetching events:', error);
     return NextResponse.json(

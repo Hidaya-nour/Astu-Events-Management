@@ -31,6 +31,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ViewEventDetails } from "./view-events-details"
 import { EditEventForm } from "./edit-event-form"
 import { DeleteEventDialog } from "./delete-event-dialog"
+import { toast } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 interface Event {
   id: string
@@ -226,19 +228,38 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
     setViewDialogOpen(true)
   }
 
-  const handleEditEvent = (eventId: string) => {
-    const event = events.find(e => e.id === eventId)
-    if (event) {
+  const handleEditEvent = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to fetch event details')
+      }
+      const event = await response.json()
       setSelectedEvent(event)
       setEditDialogOpen(true)
+    } catch (error) {
+      console.error('Error fetching event:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch event details. Please try again.')
     }
   }
 
-  const handleDeleteEvent = (eventId: string) => {
-    const event = events.find(e => e.id === eventId)
-    if (event) {
-      setSelectedEvent(event)
-      setDeleteDialogOpen(true)
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete event')
+      }
+
+      setEvents(events.filter(event => event.id !== eventId))
+      toast.success('Event deleted successfully')
+      setDeleteDialogOpen(false)
+    } catch (error) {
+      console.error('Error deleting event:', error)
+      toast.error('Failed to delete event. Please try again.')
     }
   }
 
@@ -250,6 +271,33 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
   const handleEventDeleted = (eventId: string) => {
     setEvents(events.filter(event => event.id !== eventId))
     setDeleteDialogOpen(false)
+  }
+
+  const handleSaveEvent = async (eventId: string, data: any) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update event')
+      }
+
+      const updatedEvent = await response.json()
+      setEvents(events.map(event => 
+        event.id === eventId ? updatedEvent : event
+      ))
+      
+      toast.success('Event updated successfully')
+      setEditDialogOpen(false)
+    } catch (error) {
+      console.error('Error updating event:', error)
+      toast.error('Failed to update event. Please try again.')
+    }
   }
 
   if (loading) {
@@ -507,19 +555,7 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
         event={selectedEvent}
         isOpen={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
-        onSave={async (eventId, data) => {
-          const response = await fetch(`/api/events/${eventId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-          })
-          if (response.ok) {
-            const updatedEvent = await response.json()
-            setEvents(events.map(event => event.id === updatedEvent.id ? updatedEvent : event))
-          }
-        }}
+        onSave={handleSaveEvent}
       />
 
       {/* Delete Dialog */}
@@ -528,15 +564,9 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
         eventTitle={selectedEvent?.title}
         isOpen={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={async (eventId) => {
-          const response = await fetch(`/api/events/${eventId}`, {
-            method: 'DELETE',
-          })
-          if (response.ok) {
-            setEvents(events.filter(event => event.id !== eventId))
-          }
-        }}
+        onConfirm={handleDeleteEvent}
       />
     </div>
   )
 }
+

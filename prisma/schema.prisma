@@ -55,6 +55,7 @@ model Event {
   requiresApproval    Boolean        @default(false)
   allowFeedback       Boolean        @default(true)
   organizerInfo       Boolean        @default(true)
+  featured            Boolean        @default(false)
 
   capacity            Int
   registrationDeadline DateTime?

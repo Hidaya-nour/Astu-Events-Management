@@ -147,7 +147,7 @@ export function AdminEventsCalendarView({ searchQuery, sortBy }: AdminEventsCale
                       {event.approvalStatus}
                     </Badge>
                     <span className="text-sm text-muted-foreground">
-                      {event._count.registrations}/{event.capacity} attendees
+                      {/* {event._count.registrations}/{event.capacity} attendees */}
                     </span>
               </div>
               </div>

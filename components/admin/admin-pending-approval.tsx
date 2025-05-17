@@ -8,7 +8,7 @@ import { Calendar, Clock, MapPin, CheckCircle, XCircle, Eye } from "lucide-react
 import { format } from "date-fns"
 import Link from "next/link"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-
+import { toast } from 'react-toastify'
 interface Event {
   id: string
   title: string
@@ -54,51 +54,56 @@ export function AdminPendingApprovals() {
     fetchPendingEvents()
   }, [])
 
-  const handleApprove = async (eventId: string) => {
-    try {
-      const response = await fetch(`/api/events/${eventId}/approve`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
 
-      if (!response.ok) {
-        throw new Error('Failed to approve event')
-      }
 
-      setApprovedEvents((prev) => [...prev, eventId])
-      setRejectedEvents((prev) => prev.filter((id) => id !== eventId))
-      // Remove the event from the pending list
-      setPendingEvents((prev) => prev.filter((event) => event.id !== eventId))
-    } catch (err) {
-      console.error('Error approving event:', err)
-      // You might want to show an error message to the user here
+const handleApprove = async (eventId: string) => {
+  try {
+    const response = await fetch(`/api/events/${eventId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ approvalStatus: 'APPROVED' }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to approve event')
     }
+
+    toast.success('Event approved successfully')
+    setApprovedEvents((prev) => [...prev, eventId])
+    setRejectedEvents((prev) => prev.filter((id) => id !== eventId))
+    setPendingEvents((prev) => prev.filter((event) => event.id !== eventId))
+  } catch (err) {
+    console.error('Error approving event:', err)
+    toast.error('Failed to approve event')
   }
+}
 
-  const handleReject = async (eventId: string) => {
-    try {
-      const response = await fetch(`/api/events/${eventId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
+const handleReject = async (eventId: string) => {
+  try {
+    const response = await fetch(`/api/events/${eventId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ approvalStatus: 'REJECTED' }),
+    })
 
-      if (!response.ok) {
-        throw new Error('Failed to reject event')
-      }
-
-      setRejectedEvents((prev) => [...prev, eventId])
-      setApprovedEvents((prev) => prev.filter((id) => id !== eventId))
-      // Remove the event from the pending list
-      setPendingEvents((prev) => prev.filter((event) => event.id !== eventId))
-    } catch (err) {
-      console.error('Error rejecting event:', err)
-      // You might want to show an error message to the user here
+    if (!response.ok) {
+      throw new Error('Failed to reject event')
     }
+
+    toast.success('Event rejected successfully')
+    setRejectedEvents((prev) => [...prev, eventId])
+    setApprovedEvents((prev) => prev.filter((id) => id !== eventId))
+    setPendingEvents((prev) => prev.filter((event) => event.id !== eventId))
+  } catch (err) {
+    console.error('Error rejecting event:', err)
+    toast.error('Failed to reject event')
   }
+}
+
 
   const getCategoryBadge = (category: string) => {
     const categories: Record<string, { bg: string; text: string }> = {
@@ -222,7 +227,6 @@ export function AdminPendingApprovals() {
                           onClick={() => handleApprove(event.id)}
                         >
                           <CheckCircle className="h-4 w-2 mr-1" />
-                          Approve
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -240,7 +244,6 @@ export function AdminPendingApprovals() {
                           onClick={() => handleReject(event.id)}
                         >
                           <XCircle className="h-4 w-2 mr-1" />
-                          Reject
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
