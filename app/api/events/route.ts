@@ -180,6 +180,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+    const userRole = session?.user?.role;
     // Extract filter parameters
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -206,6 +209,10 @@ export async function GET(request: Request) {
     // Build filter conditions
     const where: any = {};
 
+    if (userRole === 'EVENT_ORGANIZER' && userId) {
+      where.createdById = userId;
+    }
+    
     if (startDate || endDate) {
       where.date = {};
       if (startDate) {
@@ -215,7 +222,7 @@ export async function GET(request: Request) {
         where.date.lte = new Date(endDate);
       }
     }
-
+    
     if (category.length > 0) {
       where.category = {
         in: category.map(cat => cat.trim().toUpperCase())

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -11,10 +13,14 @@ export async function GET() {
         { status: 404 }
       )
     }
-
+   
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+    const userRole = session?.user?.role;
     const events = await prisma.event.findMany({
+      
       where: {
-        createdById: firstUser.id,
+        createdById: userId,
       },
       orderBy: {
         date: "desc",

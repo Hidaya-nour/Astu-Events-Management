@@ -109,7 +109,7 @@ export default function OrganizerDashboard() {
         appName="ASTU Events"
         appLogo="/placeholder.svg?height=32&width=32"
         helpText="Need Assistance?"
-        helpLink="/dashboard/organizer/support"
+        helpLink="organizer/support"
       >
         <div className="flex items-center justify-center h-[50vh]">
           <div className="text-center">
@@ -128,7 +128,7 @@ export default function OrganizerDashboard() {
       appName="ASTU Events"
       appLogo="/placeholder.svg?height=32&width=32"
       helpText="Need Assistance?"
-      helpLink="/dashboard/organizer/support"
+      helpLink="/organizer/support"
     >
       <div className="space-y-8">
         {/* Welcome Section */}
@@ -138,7 +138,7 @@ export default function OrganizerDashboard() {
               <h1 className="text-2xl font-bold">Organizer Dashboard</h1>
               <p className="text-muted-foreground">Manage your events and track attendance</p>
             </div>
-            <Link href="/dashboard/organizer/events/create">
+            <Link href="/organizer/events/create">
               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Create New Event
@@ -155,7 +155,7 @@ export default function OrganizerDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalEvents}</div>
-              <p className="text-xs text-muted-foreground">{stats.activeEvents} active, {stats.totalEvents - stats.activeEvents} completed</p>
+              <p className="text-xs text-muted-foreground">{stats.activeEvents} active, {stats.totalEvents - stats.activeEvents-stats.upcomingEvents} completed </p>
               <Progress value={(stats.activeEvents / stats.totalEvents) * 100} className="mt-2 h-1" />
             </CardContent>
           </Card>
@@ -196,10 +196,7 @@ export default function OrganizerDashboard() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
             <h2 className="text-xl font-bold">My Events</h2>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-1">
-                <Filter className="h-4 w-4" />
-                Filter
-              </Button>
+              
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-1">
