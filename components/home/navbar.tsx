@@ -38,21 +38,25 @@ export function Navbar() {
         </nav>
         <div className="hidden md:flex items-center gap-4">
           <Button variant="outline" asChild>
-            <Link href="/auth/signin">Log In</Link>
+            <Link href="/login">Log In</Link>
           </Button>
           <Button asChild>
             <Link href="/signup">Sign Up</Link>
           </Button>
         </div>
         <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden">
+          <SheetTrigger asChild className="md:hidden">
+            <Button variant="ghost" size="icon" aria-label="Menu">
               <Menu className="h-6 w-6" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="right">
-            <div className="flex flex-col h-full">
-              <nav className="flex-1 space-y-4 py-4">
+          <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+            <div className="flex flex-col gap-6 py-6">
+              <Link href="/" className="flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
+                <Calendar className="h-6 w-6" />
+                <span className="font-bold text-xl">EventPro</span>
+              </Link>
+              <nav className="flex flex-col gap-4">
                 <Link
                   href="/events"
                   className="text-sm font-medium hover:text-primary transition-colors"
@@ -91,7 +95,7 @@ export function Navbar() {
               </nav>
               <div className="flex flex-col gap-2">
                 <Button variant="outline" asChild onClick={() => setIsMenuOpen(false)}>
-                  <Link href="/auth/signin">Log In</Link>
+                  <Link href="/login">Log In</Link>
                 </Button>
                 <Button asChild onClick={() => setIsMenuOpen(false)}>
                   <Link href="/signup">Sign Up</Link>
@@ -103,4 +107,4 @@ export function Navbar() {
       </div>
     </header>
   )
-} 
+}

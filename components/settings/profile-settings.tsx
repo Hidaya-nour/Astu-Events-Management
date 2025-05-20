@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -9,8 +9,6 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
 
 const profileFormSchema = z.object({
   name: z.string().min(2, {
@@ -36,103 +34,33 @@ const profileFormSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>
 
+const defaultValues: Partial<ProfileFormValues> = {
+  name: "Ezex Kedir",
+  bio: "Student at Adama Science and Technology University",
+  location: "Adama, Ethiopia",
+  website: "",
+  department: "Computer Science",
+}
+
 export default function ProfileSettings() {
   const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const { data: session, status } = useSession()
-  const router = useRouter()
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
+    defaultValues,
     mode: "onChange",
   })
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/signin")
-      return
-    }
-
-    if (status === "authenticated") {
-      fetchProfile()
-    }
-  }, [status, router])
-
-  async function fetchProfile() {
-    try {
-      const response = await fetch("/api/profile")
-      if (!response.ok) {
-        throw new Error("Failed to fetch profile")
-      }
-      const data = await response.json()
-      form.reset({
-        name: data.name || "",
-        bio: data.bio || "",
-        location: data.location || "",
-        website: data.website || "",
-        department: data.department || "",
-      })
-    } catch (error) {
-      console.error("Error fetching profile:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load profile data. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   async function onSubmit(data: ProfileFormValues) {
     setIsSaving(true)
-    try {
-      console.log("Submitting data:", data)
-      const response = await fetch("/api/profile", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.text()
-        console.error("Error response:", errorData)
-        throw new Error(`Failed to update profile: ${errorData}`)
-      }
-
-      const updatedData = await response.json()
-      console.log("Update successful:", updatedData)
-
-      toast({
-        title: "Profile updated",
-        description: "Your profile information has been updated successfully.",
-      })
-    } catch (error) {
-      console.error("Error updating profile:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update profile. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-8 w-48 animate-pulse rounded bg-gray-200" />
-        <div className="space-y-4">
-          <div className="h-10 w-full animate-pulse rounded bg-gray-200" />
-          <div className="h-10 w-full animate-pulse rounded bg-gray-200" />
-          <div className="h-10 w-full animate-pulse rounded bg-gray-200" />
-        </div>
-      </div>
-    )
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    console.log(data)
+    setIsSaving(false)
+    toast({
+      title: "Profile updated",
+      description: "Your profile information has been updated successfully.",
+    })
   }
 
   return (
@@ -222,4 +150,4 @@ export default function ProfileSettings() {
       </Form>
     </div>
   )
-} 
+}

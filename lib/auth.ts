@@ -80,7 +80,7 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
-    signIn: '/auth/signin',
+    signIn: '/login',
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -96,10 +96,11 @@ export const authOptions: NextAuthOptions = {
       if (token) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
-        session.user.department = token.department as string;
-        session.user.year = token.year as number;
+        session.user.department = token.department as string | undefined;
+        session.user.year = token.year as number | undefined;
       }
       return session;
     },
   },
+  secret: process.env.NEXTAUTH_SECRET,
 }; 
