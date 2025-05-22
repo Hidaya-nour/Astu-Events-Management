@@ -3,10 +3,12 @@
 import type React from "react"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/components/home/theme-provider"
+import { ThemeProvider } from "@/components/theme-provider"
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { SessionProvider } from "next-auth/react"
+import { SiteHeader } from "@/components/site-header"
+import { SiteFooter } from "@/components/site-footer"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,6 +23,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <SessionProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            <div className="relative flex min-h-screen flex-col">
+              <main className="flex-1">{children}</main>
+            </div>
             <ToastContainer
               position="top-right"
               autoClose={3000}
@@ -33,7 +38,6 @@ export default function RootLayout({
               pauseOnHover
               theme="light"
             />
-            {children}
           </ThemeProvider>
         </SessionProvider>
       </body>
