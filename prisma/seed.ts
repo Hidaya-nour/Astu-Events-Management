@@ -1,107 +1,66 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+// import { PrismaClient } from '@prisma/client'
+// import { addDays } from 'date-fns'
 
-async function main() {
-  // Create users
-  const admin = await prisma.user.create({
-    data: {
-      name: 'Admin User',
-      email: 'admin@example.com',
-      password: 'hashedpassword',
-      role: 'ADMIN',
-    },
-  });
+// const prisma = new PrismaClient()
 
-  const student = await prisma.user.create({
-    data: {
-      name: 'Student One',
-      email: 'student1@example.com',
-      password: 'hashedpassword',
-      role: 'STUDENT',
-      year: 2,
-      department: 'Computer Science',
-    },
-  });
+// async function main() {
+//   // Create 10 users
+//   const users = await Promise.all(
+//     Array.from({ length: 10 }).map((_, i) =>
+//       prisma.user.create({
+//         data: {
+//           name: `User ${i + 1}`,
+//           email: `user${i + 1}@example.com`,
+//           password: 'hashedpassword',
+//           role: i === 0 ? 'ADMIN' : i <= 3 ? 'EVENT_ORGANIZER' : 'STUDENT',
+//           department: ['CS', 'EE', 'ME', 'CE', 'BA'][i % 5],
+//           year: (i % 4) + 1,
+//         },
+//       })
+//     )
+//   )
 
-  const organizer = await prisma.user.create({
-    data: {
-      name: 'Event Organizer',
-      email: 'organizer@example.com',
-      password: 'hashedpassword',
-      role: 'EVENT_ORGANIZER',
-      department: 'Engineering',
-    },
-  });
+//   // Create 10 events
+//   await Promise.all(
+//     Array.from({ length: 10 }).map((_, i) =>
+//       prisma.event.create({
+//         data: {
+//           title: `Event ${i + 1}`,
+//           description: `This is the description for event ${i + 1}.`,
+//           date: addDays(new Date(), i + 1),
+//           startTime: '10:00 AM',
+//           endTime: '12:00 PM',
+//           location: `Location ${i + 1}`,
+//           venue: `Hall ${i + 1}`,
+//           category: ['Tech', 'Art', 'Science', 'Business'][i % 4],
+//           department: ['CS', 'EE', 'ME'][i % 3],
+//           tags: `tag${i + 1},tag${i + 2}`,
+//           images: `https://example.com/event${i + 1}.jpg`,
+//           contactEmail: `organizer${i + 1}@example.com`,
+//           contactPhone: `123-456-789${i}`,
+//           eventType: ['IN_PERSON', 'ONLINE', 'HYBRID'][i % 3],
+//           isPublic: true,
+//           requiresApproval: false,
+//           allowFeedback: true,
+//           organizerInfo: true,
+//           featured: i % 2 === 0,
+//           capacity: 100 + i * 10,
+//           registrationDeadline: addDays(new Date(), i),
+//           approvalStatus: ['PENDING', 'APPROVED', 'REJECTED'][i % 3],
+//           createdById: users[i % users.length].id,
+//         },
+//       })
+//     )
+//   )
 
-  // Create events
-  const upcomingEvent = await prisma.event.create({
-    data: {
-      title: 'Tech Meetup 2025',
-      description: 'A gathering of tech enthusiasts.',
-      date: new Date(new Date().getFullYear() + 1, 0, 15),
-      startTime: '10:00 AM',
-      endTime: '3:00 PM',
-      location: 'Main Hall',
-      venue: 'Building A',
-      category: 'TECH',
-      department: 'Engineering',
-      capacity: 100,
-      eventType: 'IN_PERSON',
-      createdById: organizer.id,
-      approvalStatus: 'APPROVED',
-    },
-  });
+//   console.log('Seeding complete.')
+// }
 
-  const pastEvent = await prisma.event.create({
-    data: {
-      title: 'Past Seminar 2024',
-      description: 'A past event for testing.',
-      date: new Date(new Date().getFullYear() - 1, 5, 10),
-      startTime: '1:00 PM',
-      endTime: '4:00 PM',
-      location: 'Auditorium',
-      category: 'EDUCATION',
-      capacity: 50,
-      eventType: 'ONLINE',
-      createdById: organizer.id,
-      approvalStatus: 'APPROVED',
-    },
-  });
-
-  // Registrations
-  await prisma.registration.createMany({
-    data: [
-      {
-        eventId: upcomingEvent.id,
-        userId: student.id,
-        status: 'CONFIRMED',
-      },
-      {
-        eventId: pastEvent.id,
-        userId: student.id,
-        status: 'WAITLISTED',
-      },
-    ],
-  });
-
-  // Feedback
-  await prisma.feedback.create({
-    data: {
-      eventId: pastEvent.id,
-      userId: student.id,
-      rating: 4,
-      comment: 'Great event, well organized!',
-    },
-  });
-
-  console.log('Seed completed.');
-}
-
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// main()
+//   .catch(e => {
+//     console.error(e)
+//     process.exit(1)
+//   })
+//   .finally(async () => {
+//     await prisma.$disconnect()
+//   })

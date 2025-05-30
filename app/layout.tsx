@@ -9,8 +9,14 @@ import 'react-toastify/dist/ReactToastify.css';
 import { SessionProvider } from "next-auth/react"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
+import { Toaster } from "react-hot-toast"
 
 const inter = Inter({ subsets: ["latin"] })
+
+// export const metadata = {
+//   title: "ASTU Events",
+//   description: "Event management system for ASTU",
+// }
 
 export default function RootLayout({
   children,
@@ -26,6 +32,7 @@ export default function RootLayout({
             <div className="relative flex min-h-screen flex-col">
               <main className="flex-1">{children}</main>
             </div>
+            <Toaster />
             <ToastContainer
               position="top-right"
               autoClose={3000}
