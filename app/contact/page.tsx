@@ -190,7 +190,7 @@ export default function ContactPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
             className="space-y-8"
-          >
+        >
             <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
               <h2 className="mb-6 text-2xl font-semibold text-foreground">Contact Information</h2>
               <div className="space-y-4">

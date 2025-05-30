@@ -194,6 +194,7 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
+    const registeredBy = searchParams.get('registeredBy'); // <- NEW
 
     console.log({
       startDate,
@@ -263,6 +264,10 @@ export async function GET(request: Request) {
         where.date = { lt: new Date() };
         orderBy = { date: 'desc' };
         break;
+      case 'waitlisted':
+        where.approvalStatus = 'WAITLISTED';
+        orderBy = { date: 'desc' };
+        break;
       case 'attendees':
         orderBy = { registrations: { _count: 'desc' } };
         break;
@@ -273,7 +278,13 @@ export async function GET(request: Request) {
       default:
         orderBy = { createdAt: 'desc' };
     }
-
+    if (registeredBy) {
+      where.registrations = {
+        some: {
+          userId: registeredBy
+        }
+      };
+    }
     // Fetch events with pagination and include organizer data
     const [events, total] = await Promise.all([
       prisma.event.findMany({

@@ -2,218 +2,260 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import {
-  Award,
-  Bell,
-  BookOpen,
-  Calendar,
-  ChevronDown,
-  Clock,
-  Download,
-  Filter,
-  HelpCircle,
-  Home,
-  LogOut,
-  Menu,
-  MoreHorizontal,
-  Settings,
-  Star,
-  User,
-  Users,
-  Sun,
-  Moon,
-} from "lucide-react"
-import Image from "next/image"
-import Link from "next/link"
-
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { DashboardStats } from "@/components/student/dashboard-stats"
+import { EventCard } from "@/components/student/event-card"
+import { SearchFilters } from "@/components/student/search-filters"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Progress } from "@/components/ui/progress"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { AlertCircle, Calendar, Clock, MapPin, Plus } from "lucide-react"
+import { DashboardLayout } from "@/components/layout/dashboard-layout"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useToast } from "@/hooks/use-toast"
 
-// Sample data for the student
-const userInfo = {
-  name: "Abebe Bekele",
-  role: "Student",
-  id: "ETS0123/12",
-  department: "Computer Science",
-  semester: "Spring 2025",
-  year: "3rd Year",
-}
-
-
-// Helper function to get badge variant based on status
-function getBadgeVariant(status) {
-  switch (status) {
-    case "Registered":
-      return "secondary"
-    case "Attended":
-      return "default"
-    case "Waitlisted":
-      return "destructive"
-    case "Feedback Submitted":
-      return "outline"
-    default:
-      return "default"
+interface Event {
+  id: string
+  title: string
+  description: string
+  date: string
+  startTime: string
+  endTime?: string
+  location: string
+  venue?: string
+  organizer: {
+    id: string
+    name: string
+    avatar?: string
   }
+  category: string
+  images: string
+  capacity: number
+  _count?: {
+    registrations: number
+  }
+  isRegistered?: boolean
+  isFavorite?: boolean
 }
 
-// Event Card Component
-function EventCard({ event }) {
+function UpcomingEvent({ event }) {
+  const daysLeft = () => {
+    const eventDate = new Date(event.date)
+    const today = new Date()
+    const diffTime = Math.abs(eventDate.getTime() - today.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays
+  }
+
   return (
-    <Card className="overflow-hidden h-full">
-      <div className="relative h-40">
-        <Image src={event.image || "/placeholder.svg"} alt={event.title} fill className="object-cover" />
-        <Badge variant={getBadgeVariant(event.status)} className="absolute top-2 right-2">
-          {event.status}
-        </Badge>
-      </div>
-      <CardHeader className="p-4">
-        <CardTitle className="text-lg">{event.title}</CardTitle>
-        <CardDescription className="flex items-center gap-1 text-xs">
+    <Card className="overflow-hidden border-l-4 border-l-primary">
+      <CardHeader className="p-4 pb-2">
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-base">{event.title}</CardTitle>
+          <Badge variant="outline" className="ml-2">
+            {daysLeft()} days left
+          </Badge>
+        </div>
+        <CardDescription className="flex items-center gap-1 text-xs mt-1">
           <Calendar className="h-3 w-3" />
-          {event.date} • {event.location}
+          {event.date} • {event.startTime}
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 pt-0">
-        <p className="text-sm text-muted-foreground mb-3">{event.description}</p>
-        <div className="flex flex-wrap gap-1 mb-3">
-          {event.tags?.map((tag) => (
-            <Badge key={tag} variant="outline" className="text-xs">
-              {tag}
-            </Badge>
-          ))}
-        </div>
-        {event.rating && (
-          <div className="flex items-center star-rating">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star key={star} className={star <= event.rating ? "star-filled" : "star-empty"} />
-            ))}
+        <div className="flex justify-between items-center text-sm">
+          <div className="flex items-center">
+            <MapPin className="h-3 w-3 mr-1" />
+            {event.location}
           </div>
-        )}
+          <Button size="sm" variant="ghost" className="h-8 p-0">
+            <Calendar className="h-4 w-4 mr-1" />
+            Add to Calendar
+          </Button>
+        </div>
       </CardContent>
-      <CardFooter className="p-4 pt-0 flex justify-between items-center">
-        <Button size="sm" variant="outline">
-          View Details
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>View Details</DropdownMenuItem>
-            {event.status === "Registered" && <DropdownMenuItem>Download Ticket</DropdownMenuItem>}
-            {event.status === "Registered" && <DropdownMenuItem>Cancel Registration</DropdownMenuItem>}
-            {event.status === "Attended" && !event.rating && <DropdownMenuItem>Give Feedback</DropdownMenuItem>}
-            {event.status === "Attended" && event.rating && <DropdownMenuItem>View Feedback</DropdownMenuItem>}
-            {event.status === "Waitlisted" && <DropdownMenuItem>Check Position</DropdownMenuItem>}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </CardFooter>
     </Card>
   )
 }
-
 export default function StudentDashboard() {
-  const [events, setEvents] = useState([])
-  const [myEvents, setMyEvents] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const { data: session, status } = useSession()
+  const { toast } = useToast()
+  const [events, setEvents] = useState<Event[]>([])
+  const [myEvents, setMyEvents] = useState<Event[]>([])
+  const [recommendedEvents, setRecommendedEvents] = useState<Event[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Calculate statistics from myEvents
-  const stats = {
-    totalEvents: myEvents.length,
-    registeredEvents: myEvents.filter(event => event.status === 'CONFIRMED').length,
-    waitlistedEvents: myEvents.filter(event => event.status === 'WAITLISTED').length,
-    topCategory: (() => {
-      if (myEvents.length === 0) return 'None';
+  // Fetch all events
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch('/api/events?sort=upcoming')
+      if (!response.ok) throw new Error('Failed to fetch events')
+      const data = await response.json()
+      setEvents(data.events)
+    } catch (err) {
+      setError(err.message)
+      toast({
+        title: "Error",
+        description: "Failed to fetch events",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Fetch my registered events
+  const fetchMyEvents = async () => {
+    try {
+      const response = await fetch('/api/registration/student')
+      if (!response.ok) throw new Error('Failed to fetch my events')
+      const data = await response.json()
       
-      const categoryCounts = new Map<string, number>();
+      // Transform the data to match the Event interface
+      const transformedEvents = data.map((event: any) => ({
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        date: event.date,
+        startTime: event.time || "TBD",
+        endTime: event.endTime,
+        location: event.location,
+        venue: event.venue,
+        organizer: {
+          id: event.organizerId || "",
+          name: event.organizer,
+          avatar: event.organizerAvatar
+        },
+        category: event.category,
+        images: event.image || "/placeholder.svg",
+        capacity: event.maxAttendees || 0,
+        _count: {
+          registrations: event.attendees || 0
+        },
+        isRegistered: true,
+        isFavorite: event.isFavorite || false
+      }))
       
-      for (const event of myEvents) {
-        const category = event.category || 'Uncategorized';
-        categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
+      setMyEvents(transformedEvents)
+    } catch (err) {
+      setError(err.message)
+      toast({
+        title: "Error",
+        description: "Failed to fetch your events",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Fetch recommended events
+  const fetchRecommendedEvents = async () => {
+    try {
+      const response = await fetch('/api/events?sort=recommended')
+      if (!response.ok) throw new Error('Failed to fetch recommended events')
+      const data = await response.json()
+      setRecommendedEvents(data.events)
+    } catch (err) {
+      setError(err.message)
+      toast({
+        title: "Error",
+        description: "Failed to fetch recommended events",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle event registration
+  const handleRegister = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/registration/${eventId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to register for event')
       }
-      
-      let maxCount = 0;
-      let topCategory = 'None';
-      
-      for (const [category, count] of categoryCounts) {
-        if (count > maxCount) {
-          maxCount = count;
-          topCategory = category;
-        }
-      }
-      
-      return topCategory;
-    })()
+
+      // Refresh events after registration
+      await Promise.all([
+        fetchEvents(),
+        fetchMyEvents(),
+      ])
+
+      toast({
+        title: "Success",
+        description: "Successfully registered for the event",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to register for the event",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }
+
+  // Handle search and filters
+  const handleSearch = async (filters: {
+    search: string
+    category: string[]
+    date: string
+    location: string
+  }) => {
+    try {
+      const queryParams = new URLSearchParams()
+      if (filters.search) queryParams.set('search', filters.search)
+      if (filters.category.length) queryParams.set('category', filters.category.join(','))
+      if (filters.date) queryParams.set('date', filters.date)
+      if (filters.location) queryParams.set('location', filters.location)
+
+      const response = await fetch(`/api/events?${queryParams.toString()}`)
+      if (!response.ok) throw new Error('Failed to fetch filtered events')
+      const data = await response.json()
+      setEvents(data.events)
+    } catch (err) {
+      setError(err.message)
+      toast({
+        title: "Error",
+        description: "Failed to fetch filtered events",
+        variant: "destructive",
+      })
+    }
   }
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const loadData = async () => {
+      setLoading(true)
       try {
-        setLoading(true)
-        const queryParams = new URLSearchParams({
-          sort: 'upcoming',
-          limit: '6'
-        })
-        
-        const response = await fetch(`/api/events?${queryParams.toString()}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch events')
-        }
-        const data = await response.json()    
-        // The API returns events in a paginated format
-        if (data && Array.isArray(data.events)) {
-          setEvents(data.events)
-        } else {
-          setEvents([])
-        }
+        await Promise.all([
+          fetchEvents(),
+          fetchMyEvents(),
+          fetchRecommendedEvents(),
+        ])
       } catch (err) {
-        setError(err.message)
-        setEvents([])
+        console.error('Error loading data:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    const fetchMyEvents = async () => {
-      try {
-        const response = await fetch('/api/events/student')
-        if (!response.ok) {
-          throw new Error('Failed to fetch my events')
-        }
-        const data = await response.json()
-        setMyEvents(Array.isArray(data) ? data : [])
-      } catch (err) {
-        console.error('Error fetching my events:', err)
-        setMyEvents([])
-      }
+    if (status === 'authenticated') {
+      loadData()
     }
+  }, [status])
 
-    fetchEvents()
-    fetchMyEvents()
-  }, [])
-
-  if (status === "loading") {
+  if (status === 'loading') {
     return (
-      <DashboardLayout appName="ASTU Events">
+      <DashboardLayout
+        appName="ASTU Events"
+        appLogo="/placeholder.svg?height=32&width=32"
+        helpText="Need Assistance?"
+        helpLink="/dashboard/student/support"
+      >
         <div className="flex items-center justify-center h-full">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </DashboardLayout>
     )
@@ -226,194 +268,154 @@ export default function StudentDashboard() {
       helpText="Need Assistance?"
       helpLink="/dashboard/student/support"
     >
-      <div className="container mx-auto p-4 md:p-6 space-y-8">
+      <main className="flex-1 space-y-6 p-6">
         {/* Welcome Section */}
         <div className="rounded-lg border bg-card p-6 shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16 border-2 border-primary">
-                <AvatarImage src={session?.user?.image || "/placeholder.svg"} alt={session?.user?.name} />
-                <AvatarFallback>{session?.user?.name?.charAt(0) || "U"}</AvatarFallback>
+                <AvatarImage
+                  src={session?.user?.image || "/placeholder.svg?height=64&width=64"}
+                  alt={session?.user?.name || "User"}
+                />
+                <AvatarFallback>{(session?.user?.name || "User").charAt(0)}</AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-2xl font-bold">Welcome, {session?.user?.name}</h1>
+                <h1 className="text-2xl font-bold">Welcome, {session?.user?.name || "User"}</h1>
                 <p className="text-muted-foreground">
                   {session?.user?.department && `${session.user.department} • `}
-                  {session?.user?.year && `${session.user.year}th Year `}
+                  {session?.user?.year && `${session.user.year} `}
                 </p>
               </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <span className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+              <span className="text-sm text-muted-foreground flex items-center">
                 <Clock className="mr-1 inline-block h-4 w-4" />
                 Last login: {new Date().toLocaleDateString()}
               </span>
             </div>
           </div>
         </div>
+       
+        {/* Stats */}
+        <DashboardStats />
 
-        {/* Analytics Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Total Events</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalEvents}</div>
-              <p className="text-xs text-muted-foreground">Events you're involved in</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Registered Events</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.registeredEvents}</div>
-              <p className="text-xs text-muted-foreground">Events you're registered for</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Waitlisted Events</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.waitlistedEvents}</div>
-              <p className="text-xs text-muted-foreground">Events you're waitlisted for</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Top Category</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.topCategory}</div>
-              <p className="text-xs text-muted-foreground">Most frequent event category</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* My Events Section */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">My Events</h2>
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
+        {/* Next Upcoming Event */}
+        {events.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold flex items-center">
+              <AlertCircle className="h-5 w-5 mr-2 text-primary" />
+              Next Upcoming Event
+            </h2>
+            <UpcomingEvent event={events[0]} />
           </div>
-          
-          {loading ? (
-            <div className="flex items-center justify-center h-40">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-            </div>
-          ) : error ? (
-            <div className="text-center text-red-500 p-4">
-              {error}
-            </div>
-          ) : myEvents.length === 0 ? (
-            <div className="text-center text-muted-foreground p-4">
-              You haven't registered for any events yet.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {myEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
-              ))}
-            </div>
-          )}
-        </div>
+        )}
+        {/* Main Content Tabs */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="discover">Discover Events</TabsTrigger>
+            <TabsTrigger value="my-events">My Events</TabsTrigger>
+            <TabsTrigger value="recommended">Recommended</TabsTrigger>
+          </TabsList>
 
-        {/* Discover Events Section */}
-        <div>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-            <h2 className="text-xl font-bold">Discover Events</h2>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button variant="outline" size="sm" className="gap-1">
-                <Filter className="h-4 w-4" />
-                Filter
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1">
-                    Categories
-                    <ChevronDown className="h-4 w-4" />
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Upcoming Events */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    Upcoming Events
+                    <Badge variant="secondary">{events.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {events.slice(0, 3).map((event) => (
+                    <EventCard 
+                      key={event.id} 
+                      event={event} 
+                      variant="compact"
+                      onRegister={handleRegister}
+                    />
+                  ))}
+                  {events.length > 3 && (
+                    <Button variant="outline" className="w-full">
+                      View All My Events
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Recommended for You */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recommended for You</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {recommendedEvents.slice(0, 3).map((event) => (
+                    <EventCard 
+                      key={event.id} 
+                      event={event} 
+                      variant="compact"
+                      onRegister={handleRegister}
+                    />
+                  ))}
+                  <Button variant="outline" className="w-full">
+                    View All Recommendations
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem>Academic</DropdownMenuItem>
-                  <DropdownMenuItem>Sports</DropdownMenuItem>
-                  <DropdownMenuItem>Social</DropdownMenuItem>
-                  <DropdownMenuItem>Clubs</DropdownMenuItem>
-                  <DropdownMenuItem>Workshops</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button variant="outline" size="sm" className="gap-1">
-                <Calendar className="h-4 w-4" />
-                Calendar View
-              </Button>
+                </CardContent>
+              </Card>
             </div>
-          </div>
+          </TabsContent>
 
-          {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-            </div>
-          ) : error ? (
-            <div className="text-center text-red-500 p-4">
-              {error}
-            </div>
-          ) : !Array.isArray(events) || events.length === 0 ? (
-            <div className="text-center text-muted-foreground p-4">
-              No events available at the moment.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <TabsContent value="discover" className="space-y-6">
+            <SearchFilters onSearch={handleSearch} />
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {events.map((event) => (
-                <Card key={event.id} className="overflow-hidden">
-                  <div className="aspect-video relative">
-                    {/* <Image
-                      src={event.images ? event.images.split(',')[0] : "/placeholder.svg"}
-                      alt={event.title}
-                      fill
-                      className="object-cover"
-                    /> */}
-                    <Badge className="absolute right-2 top-2 bg-primary">{event.category}</Badge>
-                  </div>
-                  <CardHeader className="p-4">
-                    <CardTitle className="line-clamp-1 text-lg">{event.title}</CardTitle>
-                    <CardDescription className="flex items-center gap-1 text-xs">
-                      <Calendar className="h-3 w-3" />
-                      {new Date(event.date).toLocaleDateString()} • {event.startTime}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <p className="line-clamp-2 text-sm text-muted-foreground">
-                      {event.description}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {event.tags && event.tags.split(',').map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag.trim()}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="p-4 pt-0 flex items-center justify-between">
-                    <Badge variant="outline">
-                      {event.capacity - (event._count?.registrations || 0)} Seats Available
-                    </Badge>
-                    <Button size="sm">Register</Button>
-                  </CardFooter>
-                </Card>
+                <EventCard 
+                  key={event.id} 
+                  event={event}
+                  onRegister={handleRegister}
+                />
               ))}
             </div>
-          )}
+          </TabsContent>
 
-          <div className="mt-4 text-center">
-            <Button variant="outline">View All Events</Button>
-          </div>
-        </div>
-      </div>
+          <TabsContent value="my-events" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">My Registered Events</h3>
+              <Badge variant="secondary">{myEvents.length} events</Badge>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {myEvents.map((event) => (
+                <EventCard 
+                  key={event.id} 
+                  event={event}
+                  onRegister={handleRegister}
+                />
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="recommended" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Recommended Events</h3>
+                <p className="text-sm text-muted-foreground">Based on your interests and past attendance</p>
+              </div>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {recommendedEvents.map((event) => (
+                <EventCard 
+                  key={event.id} 
+                  event={event}
+                  onRegister={handleRegister}
+                />
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </main>
     </DashboardLayout>
   )
 }
