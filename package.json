@@ -65,7 +65,8 @@
     "eslint-config-next": "^14.0.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "ts-node": "^10.9.2"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

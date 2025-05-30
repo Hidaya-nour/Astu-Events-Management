@@ -354,7 +354,6 @@ export default function EventsPage() {
     </div>
   )
 }
-
 const events = [
   {
     id: "1",
@@ -456,3 +455,4 @@ const events = [
     isFeatured: false,
   },
 ]
+

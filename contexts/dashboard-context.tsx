@@ -66,9 +66,9 @@ const STUDENT_SIDEBAR_ITEMS: SidebarItem[] = [
     href: "/student/events",
   },
   {
-    title: "My Registrations",
+    title: "My Requests",
     icon: "users",
-    href: "/student/registrations",
+    href: "/student/request",
   },
   {
     title: "Settings",

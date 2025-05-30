@@ -1,46 +1,117 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Calendar, Clock, MapPin, Share, Users } from "lucide-react"
+import { toast } from "react-toastify"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useToast } from "@/hooks/use-toast"
+
+interface Event {
+  id: string
+  title: string
+  description: string
+  longDescription?: string
+  date: string
+  time: string
+  duration?: string
+  location: string
+  address?: string
+  category: string
+  image?: string
+  capacity: number
+  registrations: number
+  registrationDeadline?: string
+  organizer?: string
+  contactEmail?: string
+  sponsors?: string[]
+  schedule?: Array<{
+    time: string
+    title: string
+    description: string
+    speaker?: string
+  }>
+  isRegistered?: boolean
+  registrationStatus?: "PENDING" | "CONFIRMED" | "CANCELLED" | "WAITLISTED"
+}
 
 export default function EventDetailsPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [event, setEvent] = useState<Event | null>(null)
+  const [isLoadingEvent, setIsLoadingEvent] = useState(true)
 
-  // In a real app, you would fetch the event details based on the ID
-  const event = events.find((e) => e.id === params.id) || events[0]
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        const response = await fetch(`/api/events/${params.id}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch event')
+        }
+        const data = await response.json()
+        setEvent(data)
+      } catch (error) {
+        toast.error('Failed to load event details')
+        router.push('/events')
+      } finally {
+        setIsLoadingEvent(false)
+      }
+    }
+
+    fetchEvent()
+  }, [params.id, router])
 
   const handleRegister = async () => {
+    if (!event) return
     setIsLoading(true)
 
-    // Simulate API call
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const response = await fetch(`/api/registration/${params.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
-      // toast({
-      //   title: "Registration successful!",
-      //   description: `You have successfully registered for ${event.title}.`,
-      // })
+      const data = await response.json()
 
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to register for event')
+      }
+
+      toast.success(data.message || 'Successfully registered for event')
       router.push("/dashboard/student")
     } catch (error) {
-      // toast({
-      //   title: "Registration failed",
-      //   description: "There was an error registering for this event. Please try again.",
-      //   variant: "destructive",
-      // })
+      toast.error(error instanceof Error ? error.message : 'Failed to register for event')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (isLoadingEvent) {
+    return (
+      <div className="container py-10">
+        <div className="flex items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!event) {
+    return (
+      <div className="container py-10">
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <h2 className="text-2xl font-bold">Event not found</h2>
+          <Button onClick={() => router.push('/events')}>Back to Events</Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -89,49 +160,63 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
                     {event.registrations}/{event.capacity} Registered
                   </span>
                 </div>
-                <div className="flex items-center text-gray-500">
-                  <Clock className="mr-2 h-4 w-4" />
-                  <span>{event.duration}</span>
-                </div>
+                {event.duration && (
+                  <div className="flex items-center text-gray-500">
+                    <Clock className="mr-2 h-4 w-4" />
+                    <span>{event.duration}</span>
+                  </div>
+                )}
               </div>
 
               <Tabs defaultValue="description" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="description">Description</TabsTrigger>
-                  <TabsTrigger value="schedule">Schedule</TabsTrigger>
+                  {event.schedule && <TabsTrigger value="schedule">Schedule</TabsTrigger>}
                   <TabsTrigger value="organizers">Organizers</TabsTrigger>
                 </TabsList>
                 <TabsContent value="description" className="space-y-4 pt-4">
                   <div className="space-y-4">
                     <p className="text-gray-600">{event.description}</p>
-                    <p className="text-gray-600">{event.longDescription}</p>
+                    {event.longDescription && (
+                      <p className="text-gray-600">{event.longDescription}</p>
+                    )}
                   </div>
                 </TabsContent>
-                <TabsContent value="schedule" className="space-y-4 pt-4">
-                  <div className="space-y-4">
-                    {event.schedule.map((item, index) => (
-                      <div key={index} className="flex border-b border-gray-200 pb-4 last:border-0 last:pb-0">
-                        <div className="mr-4 text-right">
-                          <div className="font-medium text-gray-900">{item.time}</div>
+                {event.schedule && (
+                  <TabsContent value="schedule" className="space-y-4 pt-4">
+                    <div className="space-y-4">
+                      {event.schedule.map((item, index) => (
+                        <div key={index} className="flex border-b border-gray-200 pb-4 last:border-0 last:pb-0">
+                          <div className="mr-4 text-right">
+                            <div className="font-medium text-gray-900">{item.time}</div>
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{item.title}</div>
+                            <div className="text-sm text-gray-500">{item.description}</div>
+                            {item.speaker && (
+                              <div className="mt-1 text-sm text-primary-600">
+                                Speaker: {item.speaker}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-medium text-gray-900">{item.title}</div>
-                          <div className="text-sm text-gray-500">{item.description}</div>
-                          {item.speaker && <div className="mt-1 text-sm text-primary-600">Speaker: {item.speaker}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
+                      ))}
+                    </div>
+                  </TabsContent>
+                )}
                 <TabsContent value="organizers" className="space-y-4 pt-4">
                   <div className="space-y-4">
-                    <p className="text-gray-600">
-                      <span className="font-medium">Organized by:</span> {event.organizer}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Contact:</span> {event.contactEmail}
-                    </p>
-                    {event.sponsors && (
+                    {event.organizer && (
+                      <p className="text-gray-600">
+                        <span className="font-medium">Organized by:</span> {event.organizer}
+                      </p>
+                    )}
+                    {event.contactEmail && (
+                      <p className="text-gray-600">
+                        <span className="font-medium">Contact:</span> {event.contactEmail}
+                      </p>
+                    )}
+                    {event.sponsors && event.sponsors.length > 0 && (
                       <div>
                         <p className="font-medium text-gray-900">Sponsors:</p>
                         <ul className="mt-2 list-disc pl-5 text-gray-600">
@@ -157,8 +242,18 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
             <CardContent className="space-y-4">
               <div className="rounded-lg bg-gray-50 p-4">
                 <div className="mb-2 text-sm font-medium text-gray-500">Registration Status</div>
-                <div className="text-lg font-bold text-green-600">Open</div>
-                <div className="mt-1 text-xs text-gray-500">Closes on {event.registrationDeadline}</div>
+                <div className="text-lg font-bold text-green-600">
+                  {event.isRegistered ? (
+                    <span className="capitalize">{event.registrationStatus?.toLowerCase()}</span>
+                  ) : (
+                    "Open"
+                  )}
+                </div>
+                {event.registrationDeadline && (
+                  <div className="mt-1 text-xs text-gray-500">
+                    Closes on {event.registrationDeadline}
+                  </div>
+                )}
               </div>
               <div className="rounded-lg bg-gray-50 p-4">
                 <div className="mb-2 text-sm font-medium text-gray-500">Available Spots</div>
@@ -174,9 +269,13 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
               <Button
                 className="w-full bg-primary-600 hover:bg-primary-700 text-white"
                 onClick={handleRegister}
-                disabled={isLoading}
+                disabled={isLoading || event.isRegistered}
               >
-                {isLoading ? "Processing..." : "Register Now"}
+                {isLoading
+                  ? "Processing..."
+                  : event.isRegistered
+                  ? "Already Registered"
+                  : "Register Now"}
               </Button>
               <Button variant="outline" className="w-full border-gray-200">
                 <Share className="mr-2 h-4 w-4" />
@@ -201,7 +300,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
               </div>
               <div className="space-y-2">
                 <div className="font-medium text-gray-900">{event.location}</div>
-                <div className="text-sm text-gray-500">{event.address}</div>
+                {event.address && <div className="text-sm text-gray-500">{event.address}</div>}
                 <Button
                   variant="outline"
                   className="mt-2 w-full border-primary-600 text-primary-600 hover:bg-primary-50"
@@ -211,197 +310,8 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
               </div>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Similar Events</CardTitle>
-              <CardDescription>You might also be interested in these events.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {events
-                .filter((e) => e.id !== event.id && e.category === event.category)
-                .slice(0, 2)
-                .map((similarEvent) => (
-                  <Link key={similarEvent.id} href={`/events/${similarEvent.id}`}>
-                    <div className="flex items-center space-x-4 rounded-lg border border-gray-200 p-3 transition-all hover:border-primary-300 hover:shadow-sm">
-                      <div className="relative h-16 w-16 overflow-hidden rounded-md bg-gray-100">
-                        <Image
-                          src={similarEvent.image || "/placeholder.svg?height=64&width=64"}
-                          alt={similarEvent.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900">{similarEvent.title}</div>
-                        <div className="text-xs text-gray-500">{similarEvent.date}</div>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
   )
 }
-
-const events = [
-  {
-    id: "1",
-    title: "Annual Technology Symposium",
-    description: "Join leading researchers and industry experts for ASTU's flagship technology conference.",
-    longDescription:
-      "The Annual Technology Symposium brings together the brightest minds in technology to discuss the latest trends, innovations, and research in the field. This year's theme is 'Technology for Sustainable Development' with a focus on how technology can address global challenges. The symposium will feature keynote speeches, panel discussions, research presentations, and networking opportunities.",
-    date: "June 15, 2025",
-    time: "9:00 AM - 5:00 PM",
-    duration: "8 hours",
-    location: "Main Auditorium, ASTU Campus",
-    address: "ASTU Main Campus, Adama, Ethiopia",
-    category: "Academic",
-    image: "/images/astu-computer-lab.png",
-    organizer: "Department of Computer Science",
-    contactEmail: "tech.symposium@astu.edu.et",
-    sponsors: ["Tech Ethiopia", "Adama Science and Technology University", "Ministry of Science and Technology"],
-    registrations: 120,
-    capacity: 150,
-    registrationDeadline: "June 10, 2025",
-    schedule: [
-      {
-        time: "9:00 AM - 9:30 AM",
-        title: "Registration and Welcome Coffee",
-        description: "Check-in and collect your conference materials",
-      },
-      {
-        time: "9:30 AM - 10:30 AM",
-        title: "Opening Keynote: The Future of Technology in Africa",
-        description: "An inspiring talk on the role of technology in Africa's development",
-        speaker: "Dr. Abebe Kebede, CTO of Tech Ethiopia",
-      },
-      {
-        time: "10:45 AM - 12:15 PM",
-        title: "Panel Discussion: Sustainable Technology Solutions",
-        description: "Experts discuss how technology can address environmental challenges",
-        speaker: "Various Industry Leaders",
-      },
-      {
-        time: "12:15 PM - 1:30 PM",
-        title: "Lunch Break and Networking",
-        description: "Enjoy lunch and connect with fellow attendees",
-      },
-      {
-        time: "1:30 PM - 3:00 PM",
-        title: "Research Presentations",
-        description: "ASTU students and faculty present their latest research",
-      },
-      {
-        time: "3:15 PM - 4:15 PM",
-        title: "Workshop: Practical Applications of AI",
-        description: "Hands-on workshop exploring AI applications",
-        speaker: "Prof. Tigist Haile",
-      },
-      {
-        time: "4:30 PM - 5:00 PM",
-        title: "Closing Remarks and Awards",
-        description: "Conclusion of the symposium and presentation of awards",
-      },
-    ],
-  },
-  {
-    id: "2",
-    title: "Cultural Festival",
-    description: "Celebrate the diverse cultures and traditions represented at ASTU University.",
-    longDescription:
-      "The ASTU Cultural Festival is an annual celebration of the rich cultural diversity within our university community. Students from different regions of Ethiopia and international students showcase their traditional music, dance, food, and customs. This vibrant event promotes cultural exchange, understanding, and appreciation among the ASTU community.",
-    date: "July 8, 2025",
-    time: "10:00 AM - 8:00 PM",
-    duration: "10 hours",
-    location: "University Square",
-    address: "ASTU Main Campus, Adama, Ethiopia",
-    category: "Cultural",
-    image: "/images/astu-group-photo.png",
-    organizer: "Student Affairs Office",
-    contactEmail: "cultural.festival@astu.edu.et",
-    sponsors: ["Ministry of Culture and Tourism", "Adama City Administration"],
-    registrations: 85,
-    capacity: 200,
-    registrationDeadline: "July 5, 2025",
-    schedule: [
-      {
-        time: "10:00 AM - 11:00 AM",
-        title: "Opening Ceremony",
-        description: "Official opening with traditional Ethiopian coffee ceremony",
-      },
-      {
-        time: "11:00 AM - 1:00 PM",
-        title: "Cultural Exhibitions",
-        description: "Displays of traditional artifacts, clothing, and art from various cultures",
-      },
-      {
-        time: "1:00 PM - 2:30 PM",
-        title: "International Food Festival",
-        description: "Sample cuisines from different regions and countries",
-      },
-      {
-        time: "2:30 PM - 4:30 PM",
-        title: "Traditional Music Performances",
-        description: "Live performances of traditional music from various Ethiopian regions",
-      },
-      {
-        time: "4:30 PM - 6:30 PM",
-        title: "Cultural Dance Showcase",
-        description: "Students perform traditional dances from their cultures",
-      },
-      {
-        time: "6:30 PM - 8:00 PM",
-        title: "Modern Fusion Performance and Closing",
-        description: "Contemporary performances blending traditional and modern elements",
-      },
-    ],
-  },
-  {
-    id: "3",
-    title: "Engineering Workshop",
-    description: "Hands-on workshop on the latest engineering practices and technologies.",
-    longDescription:
-      "This intensive engineering workshop provides practical, hands-on experience with cutting-edge engineering technologies and methodologies. Participants will work on real-world problems under the guidance of experienced engineers and faculty members. The workshop is designed to bridge the gap between theoretical knowledge and practical application, preparing students for the demands of the engineering industry.",
-    date: "June 25, 2025",
-    time: "2:00 PM - 5:00 PM",
-    duration: "3 hours",
-    location: "Engineering Building, Room 302",
-    address: "Engineering Complex, ASTU Main Campus, Adama, Ethiopia",
-    category: "Workshop",
-    image: "/images/engineering-workshop.png",
-    organizer: "Department of Engineering",
-    contactEmail: "engineering.workshop@astu.edu.et",
-    sponsors: ["Ethiopian Engineering Association", "Adama Industrial Park"],
-    registrations: 30,
-    capacity: 30,
-    registrationDeadline: "June 20, 2025",
-    schedule: [
-      {
-        time: "2:00 PM - 2:15 PM",
-        title: "Introduction and Overview",
-        description: "Welcome and introduction to the workshop",
-      },
-      {
-        time: "2:15 PM - 3:00 PM",
-        title: "Hands-on Session: Equipment Familiarization",
-        description: "Introduction to the engineering equipment and safety protocols",
-        speaker: "Prof. Dawit Mekonnen, Head of Engineering Department",
-      },
-      {
-        time: "3:00 PM - 4:30 PM",
-        title: "Practical Workshop: Problem Solving",
-        description: "Working on real engineering challenges in small groups",
-        speaker: "Industry Engineers from Adama Industrial Park",
-      },
-      {
-        time: "4:30 PM - 5:00 PM",
-        title: "Presentation and Discussion",
-        description: "Groups present their solutions and receive feedback",
-      },
-    ],
-  },
-]

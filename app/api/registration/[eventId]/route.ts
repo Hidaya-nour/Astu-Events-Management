@@ -1,20 +1,26 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { RegistrationStatus } from "@prisma/client"
+import { getServerSession } from 'next-auth'
+import { authOptions } from "@/lib/auth"
 
 export async function POST(
   request: Request,
   { params }: { params: { eventId: string } }
 ) {
   try {
+    // Get the eventId first
+    const { eventId } = params
+
+    // Check authentication
     const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please log in to register for events' },
+        { status: 401 }
+      )
     }
 
-    const eventId = params.eventId
     const userId = session.user.id
 
     // Check if event exists and has available capacity
@@ -31,18 +37,30 @@ export async function POST(
       return NextResponse.json({ error: "Event not found" }, { status: 404 })
     }
 
-    // Check if user is already registered
+    // Check if registration deadline has passed
+    if (event.registrationDeadline && new Date(event.registrationDeadline) < new Date()) {
+      return NextResponse.json(
+        { error: "Registration deadline has passed" },
+        { status: 400 }
+      )
+    }
+
     const existingRegistration = await prisma.registration.findFirst({
       where: {
-        eventId,
-        userId,
-        OR: [
-          { status: RegistrationStatus.PENDING },
-          { status: RegistrationStatus.CONFIRMED },
-          { status: RegistrationStatus.WAITLISTED }
+        AND: [
+          { eventId },
+          { userId },
+          {
+            OR: [
+              { status: RegistrationStatus.PENDING },
+              { status: RegistrationStatus.CONFIRMED },
+              { status: RegistrationStatus.WAITLISTED }
+            ]
+          }
         ]
       },
-    })
+    });
+    
 
     if (existingRegistration) {
       return NextResponse.json(
@@ -84,7 +102,7 @@ export async function POST(
   } catch (error) {
     console.error("Registration error:", error)
     return NextResponse.json(
-      { error: "Failed to register for event" },
+      { error: "Failed to register for event - Please try again later" },
       { status: 500 }
     )
   }

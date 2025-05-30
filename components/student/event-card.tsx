@@ -4,7 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Calendar, Clock, MapPin, Users, Heart } from "lucide-react"
 import { useState } from "react"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "react-toastify"
 
 interface EventCardProps {
   event: {
@@ -38,7 +38,6 @@ interface EventCardProps {
 
 export function EventCard({ event, variant = "default", onRegister, onUnregister }: EventCardProps) {
   const [isRegistering, setIsRegistering] = useState(false)
-  const { toast } = useToast()
 
   const getImageUrl = (images: string): string => {
     try {
@@ -72,8 +71,9 @@ export function EventCard({ event, variant = "default", onRegister, onUnregister
       try {
         setIsRegistering(true);
         await onUnregister(event.id);
+        toast.success("Successfully unregistered from event");
       } catch (error) {
-        // Error is handled by the parent component
+        toast.error("Failed to unregister from event");
       } finally {
         setIsRegistering(false);
       }
@@ -82,8 +82,9 @@ export function EventCard({ event, variant = "default", onRegister, onUnregister
       try {
         setIsRegistering(true);
         await onRegister(event.id);
+        toast.success("Successfully registered for event");
       } catch (error) {
-        // Error is handled by the parent component
+        toast.error("Failed to register for event");
       } finally {
         setIsRegistering(false);
       }
