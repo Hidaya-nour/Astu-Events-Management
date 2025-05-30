@@ -28,36 +28,104 @@ interface EventCardProps {
       registrations: number
     }
     isRegistered?: boolean
+    registrationStatus?: "PENDING" | "CONFIRMED" | "CANCELLED" | "WAITLISTED"
     isFavorite?: boolean
   }
   variant?: "default" | "compact"
   onRegister?: (eventId: string) => Promise<void>
+  onUnregister?: (eventId: string) => Promise<void>
 }
 
-export function EventCard({ event, variant = "default", onRegister }: EventCardProps) {
+export function EventCard({ event, variant = "default", onRegister, onUnregister }: EventCardProps) {
   const [isRegistering, setIsRegistering] = useState(false)
   const { toast } = useToast()
 
-  const handleRegister = async () => {
-    if (!onRegister) return
-    
+  const getImageUrl = (images: string): string => {
     try {
-      setIsRegistering(true)
-      await onRegister(event.id)
-      toast({
-        title: "Success",
-        description: `You've registered for ${event.title}`,
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to register for the event",
-        variant: "destructive",
-      })
-    } finally {
-      setIsRegistering(false)
+      // If it's a stringified array, parse it
+      const parsed = JSON.parse(images);
+  
+      // If it's an array, return the first image
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed[0];
+      }
+  
+      // If it's a string inside the parsed result
+      if (typeof parsed === 'string') {
+        return parsed;
+      }
+    } catch {
+      // Fallback for comma-separated or plain strings
+      if (images.includes(',')) {
+        return images.split(',')[0];
+      }
+      return images;
     }
-  }
+  
+    return "/placeholder.svg";
+  };
+  
+
+  const handleAction = async () => {
+    if (event.isRegistered) {
+      if (!onUnregister) return;
+      try {
+        setIsRegistering(true);
+        await onUnregister(event.id);
+      } catch (error) {
+        // Error is handled by the parent component
+      } finally {
+        setIsRegistering(false);
+      }
+    } else {
+      if (!onRegister) return;
+      try {
+        setIsRegistering(true);
+        await onRegister(event.id);
+      } catch (error) {
+        // Error is handled by the parent component
+      } finally {
+        setIsRegistering(false);
+      }
+    }
+  };
+
+  const getActionButtonText = () => {
+    if (isRegistering) return "Processing...";
+    if (event.isRegistered) {
+      switch (event.registrationStatus) {
+        case "CONFIRMED":
+          return "Registered";
+        case "PENDING":
+          return "Pending";
+        case "WAITLISTED":
+          return "Waitlisted";
+        case "CANCELLED":
+          return "Cancelled";
+        default:
+          return "Unregister";
+      }
+    }
+    return "Register";
+  };
+
+  const getActionButtonVariant = () => {
+    if (event.isRegistered) {
+      switch (event.registrationStatus) {
+        case "CONFIRMED":
+          return "outline";
+        case "PENDING":
+          return "secondary";
+        case "WAITLISTED":
+          return "secondary";
+        case "CANCELLED":
+          return "destructive";
+        default:
+          return "outline";
+      }
+    }
+    return "default";
+  };
 
   if (variant === "compact") {
     return (
@@ -65,7 +133,7 @@ export function EventCard({ event, variant = "default", onRegister }: EventCardP
         <CardContent className="p-4">
           <div className="flex gap-3">
             <img
-              src={event.images?.split(',')[0] || "/placeholder.svg"}
+              src={getImageUrl(event.images)}
               alt={event.title}
               className="w-16 h-16 rounded-lg object-cover"
             />
@@ -98,7 +166,7 @@ export function EventCard({ event, variant = "default", onRegister }: EventCardP
       <CardHeader className="p-0">
         <div className="relative">
           <img
-            src={event.images?.split(',')[0] || "/placeholder.svg"}
+            src={getImageUrl(event.images)}
             alt={event.title}
             className="w-full h-48 object-cover rounded-t-lg"
           />
@@ -131,10 +199,10 @@ export function EventCard({ event, variant = "default", onRegister }: EventCardP
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
-                <AvatarImage src={event.organizer.avatar || "/placeholder.svg"} />
-                <AvatarFallback>{event.organizer.name.charAt(0)}</AvatarFallback>
+                <AvatarImage src={event.organizer?.avatar || "/placeholder.svg"} />
+                <AvatarFallback>{event.organizer?.name?.charAt(0) || "?"}</AvatarFallback>
               </Avatar>
-              <span className="text-sm text-muted-foreground">{event.organizer.name}</span>
+              <span className="text-sm text-muted-foreground">{event.organizer?.name || "Unknown Organizer"}</span>
             </div>
 
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -150,11 +218,11 @@ export function EventCard({ event, variant = "default", onRegister }: EventCardP
       <CardFooter className="p-4 pt-0">
         <Button 
           className="w-full" 
-          variant={event.isRegistered ? "outline" : "default"}
-          onClick={handleRegister}
-          disabled={isRegistering || event.isRegistered}
+          variant={getActionButtonVariant()}
+          onClick={handleAction}
+          disabled={isRegistering}
         >
-          {isRegistering ? "Registering..." : event.isRegistered ? "Registered" : "Register"}
+          {getActionButtonText()}
         </Button>
       </CardFooter>
     </Card>

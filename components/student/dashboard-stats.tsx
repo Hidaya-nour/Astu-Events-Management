@@ -24,7 +24,7 @@ export function DashboardStats() {
         const weekData = await weekRes.json()
 
         // Fetch attended events
-        const attendedRes = await fetch('/api/events?status=ATTENDED')
+        const attendedRes = await fetch('/api/events?status=registered')
         const attendedData = await attendedRes.json()
 
         setStats({

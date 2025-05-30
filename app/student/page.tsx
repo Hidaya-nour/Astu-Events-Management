@@ -91,7 +91,31 @@ export default function StudentDashboard() {
       const response = await fetch('/api/events?sort=upcoming')
       if (!response.ok) throw new Error('Failed to fetch events')
       const data = await response.json()
-      setEvents(data.events)
+      
+      const transformedEvents = data.events.map((event: any) => {
+        let imageUrl = "/placeholder.svg";
+      
+        try {
+          const parsedImages = JSON.parse(event.images);
+          if (Array.isArray(parsedImages)) {
+            imageUrl = parsedImages[0];
+          }
+        } catch (e) {
+          console.warn("Could not parse images", e);
+        }
+      
+        return {
+          ...event,
+          images: imageUrl,
+          organizer: {
+            id: event.createdById || "",
+            name: event.createdBy?.name || "Unknown Organizer",
+            avatar: event.createdBy?.image || "/placeholder.svg"
+          }
+        };
+      });
+      
+      setEvents(transformedEvents)
     } catch (err) {
       setError(err.message)
       toast({
@@ -115,22 +139,23 @@ export default function StudentDashboard() {
         title: event.title,
         description: event.description,
         date: event.date,
-        startTime: event.time || "TBD",
+        startTime: event.startTime || "TBD",
         endTime: event.endTime,
         location: event.location,
         venue: event.venue,
         organizer: {
-          id: event.organizerId || "",
-          name: event.organizer,
-          avatar: event.organizerAvatar
+          id: event.createdById || "",
+          name: event.organizer || "Unknown Organizer",
+          avatar: event.organizerAvatar || "/placeholder.svg"
         },
         category: event.category,
         images: event.image || "/placeholder.svg",
-        capacity: event.maxAttendees || 0,
+        capacity: event.capacity || 0,
         _count: {
-          registrations: event.attendees || 0
+          registrations: event._count?.registrations || 0
         },
         isRegistered: true,
+        registrationStatus: event.status, // This comes from the registration record
         isFavorite: event.isFavorite || false
       }))
       
@@ -193,7 +218,37 @@ export default function StudentDashboard() {
         description: error.message || "Failed to register for the event",
         variant: "destructive",
       })
-      throw error
+    }
+  }
+
+  // Handle event unregistration
+  const handleUnregister = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/registration/${eventId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to unregister from event')
+      }
+
+      // Refresh events after unregistration
+      await Promise.all([
+        fetchEvents(),
+        fetchMyEvents(),
+      ])
+
+      toast({
+        title: "Success",
+        description: "Successfully unregistered from the event",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unregister from the event",
+        variant: "destructive",
+      })
     }
   }
 
@@ -392,6 +447,7 @@ export default function StudentDashboard() {
                   key={event.id} 
                   event={event}
                   onRegister={handleRegister}
+                  onUnregister={handleUnregister}
                 />
               ))}
             </div>
