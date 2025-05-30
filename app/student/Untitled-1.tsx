@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import { useToast } from "@/hooks/use-toast"
-import type { ReactElement } from 'react'
 import {
   Calendar,
   ChevronDown,
@@ -23,6 +21,7 @@ import {
   AlertCircle,
 } from "lucide-react"
 import Image from "next/image"
+import 'react-toastify/dist/ReactToastify.css'
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -33,6 +32,7 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "react-toastify"
 
 // Sample data for the student
 const userInfo = {
@@ -61,60 +61,18 @@ function getBadgeVariant(status) {
 }
 
 // Event Card Component
-function EventCard({ event }: { event: any }): ReactElement {
-  const [isRegistering, setIsRegistering] = useState(false)
-  const [imageError, setImageError] = useState(false)
-  const { toast } = useToast()
-
-  const handleRegister = async () => {
-    try {
-      setIsRegistering(true)
-      const response = await fetch(`/api/registration/${event.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to register for event')
-      }
-
-      toast({
-        title: "Success",
-        description: data.message || `You've registered for ${event.title}`,
-      })
-
-      window.location.reload()
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to register for the event. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsRegistering(false)
-    }
-  }
+function EventCard({ event }) {
+  
 
   return (
     <Card className="overflow-hidden h-full transition-all duration-200 hover:shadow-md">
-      <div className="relative h-40 bg-muted">
-        {event.images && !imageError ? (
-          <img
-            src={event.images.split(",")[0]}
-            alt={event.title}
-            className="object-cover w-full h-full"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-muted">
-            <Calendar className="h-12 w-12 text-muted-foreground" />
-          </div>
-        )}
+      <div className="relative h-40">
+        <Image
+          src={event.image || "/placeholder.svg?height=160&width=320"}
+          alt={event.title}
+          fill
+          className="object-cover"
+        />
         <Badge variant={getBadgeVariant(event.status)} className="absolute top-2 right-2">
           {event.status}
         </Badge>
@@ -123,51 +81,49 @@ function EventCard({ event }: { event: any }): ReactElement {
         <CardTitle className="text-lg line-clamp-1">{event.title}</CardTitle>
         <CardDescription className="flex items-center gap-1 text-xs">
           <Calendar className="h-3 w-3" />
-          {new Date(event.date).toLocaleDateString()} •
-          <MapPin className="h-3 w-3 ml-1" /> {event.location}
+          {event.date} • <MapPin className="h-3 w-3 ml-1" /> {event.location}
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 pt-0">
         <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{event.description}</p>
         <div className="flex flex-wrap gap-1 mb-3">
-          {event.tags &&
-            (typeof event.tags === "string"
-              ? event.tags.split(",").map((tag) => (
-                  <Badge key={tag} variant="outline" className="text-xs">
-                    {tag.trim()}
-                  </Badge>
-                ))
-              : event.tags?.map((tag) => (
-                  <Badge key={tag} variant="outline" className="text-xs">
-                    {tag}
-                  </Badge>
-                )))}
+          {event.tags?.map((tag) => (
+            <Badge key={tag} variant="outline" className="text-xs">
+              {tag}
+            </Badge>
+          ))}
         </div>
-        <div className="flex flex-wrap gap-1 mb-3">
-          {event.rating && (
-            <div className="flex items-center gap-0.5">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  className={`h-4 w-4 ${star <= event.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`}
-                />
-              ))}
-              <span className="text-xs ml-1 text-muted-foreground">({event.rating}/5)</span>
-            </div>
-          )}
-        </div>
+        {event.rating && (
+          <div className="flex items-center gap-0.5">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                className={`h-4 w-4 ${star <= event.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`}
+              />
+            ))}
+            <span className="text-xs ml-1 text-muted-foreground">({event.rating}/5)</span>
+          </div>
+        )}
       </CardContent>
       <CardFooter className="p-4 pt-0 flex justify-between items-center">
         <Button size="sm" variant="outline">
           View Details
         </Button>
-        <Button 
-          size="sm" 
-          onClick={handleRegister}
-          disabled={isRegistering}
-        >
-          {isRegistering ? "Registering..." : "Register"}
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem>View Details</DropdownMenuItem>
+            {event.status === "Registered" && <DropdownMenuItem>Download Ticket</DropdownMenuItem>}
+            {event.status === "Registered" && <DropdownMenuItem>Cancel Registration</DropdownMenuItem>}
+            {event.status === "Attended" && !event.rating && <DropdownMenuItem>Give Feedback</DropdownMenuItem>}
+            {event.status === "Attended" && event.rating && <DropdownMenuItem>View Feedback</DropdownMenuItem>}
+            {event.status === "Waitlisted" && <DropdownMenuItem>Check Position</DropdownMenuItem>}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </CardFooter>
     </Card>
   )
@@ -194,7 +150,7 @@ function UpcomingEvent({ event }) {
         </div>
         <CardDescription className="flex items-center gap-1 text-xs mt-1">
           <Calendar className="h-3 w-3" />
-          {new Date(event.date).toLocaleDateString()} • {event.startTime}
+          {event.date} • {event.startTime}
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 pt-0">
@@ -240,6 +196,9 @@ function EventCardSkeleton() {
   )
 }
 
+// Sample events data for demonstration
+
+
 export default function StudentDashboard() {
   const [events, setEvents] = useState([])
   const [myEvents, setMyEvents] = useState([])
@@ -249,68 +208,34 @@ export default function StudentDashboard() {
   const [searchQuery, setSearchQuery] = useState("")
   const [theme, setTheme] = useState("light")
   const { data: session, status } = useSession()
-  const { toast } = useToast()
 
-  // Fetch events based on the active tab
-  const fetchEvents = async (tab) => {
+
+  async function handleRegistration(eventId: string) {
     try {
-      setLoading(true)
-      let queryParams = new URLSearchParams()
-      
-      switch (tab) {
-        case "upcoming":
-          queryParams.set("sort", "upcoming")
-          break
-        case "past":
-          queryParams.set("sort", "past")
-          break
-        case "waitlisted":
-          queryParams.set("status", "Waitlisted")
-          break
-        case "all":
-          queryParams.set("sort", "newest")
-          break
-      }
-
-      const response = await fetch(`/api/events?${queryParams.toString()}`)
+      const response = await fetch(`/api/registration/${eventId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+  
       if (!response.ok) {
-        throw new Error("Failed to fetch events")
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to register for event');
       }
-      const data = await response.json()
-      setEvents(data.events || [])
-    } catch (err) {
-      setError(err.message)
-      setEvents([])
-    } finally {
-      setLoading(false)
+  
+      const data = await response.json();
+  
+      toast.success(data.message || "You have been registered for the event.");
+  
+      // Refresh the events list
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to register for the event. Please try again.");
     }
   }
-
-  // Fetch my events (events the user is registered for)
-  const fetchMyEvents = async () => {
-    try {
-      const response = await fetch("/api/events/student")
-      if (!response.ok) {
-        throw new Error("Failed to fetch my events")
-      }
-      const data = await response.json()
-      setMyEvents(Array.isArray(data) ? data : [])
-    } catch (err) {
-      console.error("Error fetching my events:", err)
-      setMyEvents([])
-    }
-  }
-
-  // Effect to fetch events when tab changes
-  useEffect(() => {
-    fetchEvents(activeTab)
-  }, [activeTab])
-
-  // Effect to fetch my events on component mount
-  useEffect(() => {
-    fetchMyEvents()
-  }, [])
-
+  
   // Calculate statistics from myEvents
   const stats = {
     totalEvents: myEvents.length,
@@ -318,42 +243,81 @@ export default function StudentDashboard() {
     waitlistedEvents: myEvents.filter((event) => event.status === "Waitlisted").length,
     topCategory: (() => {
       if (myEvents.length === 0) return "None"
+
       const categoryCounts = {}
+
       for (const event of myEvents) {
         const category = event.category || "Uncategorized"
         categoryCounts[category] = (categoryCounts[category] || 0) + 1
       }
+
       let maxCount = 0
       let topCategory = "None"
+
       for (const category in categoryCounts) {
         if (categoryCounts[category] > maxCount) {
           maxCount = categoryCounts[category]
           topCategory = category
         }
       }
+
       return topCategory
     })(),
   }
 
-  // Toggle theme function
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light"
-    setTheme(newTheme)
-    document.documentElement.classList.toggle("dark")
-    localStorage.setItem("theme", newTheme)
-    toast({
-      title: "Theme Updated",
-      description: `${newTheme.charAt(0).toUpperCase() + newTheme.slice(1)} mode activated`,
-    })
-  }
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setLoading(true)
+        const queryParams = new URLSearchParams({
+          // sort: "upcoming",
+          limit: "6",
+        })
+
+        const response = await fetch(`/api/events?${queryParams.toString()}`)
+        if (!response.ok) {
+          throw new Error("Failed to fetch events")
+        }
+        const data = await response.json()
+        // The API returns events in a paginated format
+        if (data && Array.isArray(data.events)) {
+          setEvents(data.events)
+        } else {
+          setEvents([])
+        }
+      } catch (err) {
+        setError(err.message)
+        setEvents([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    const fetchMyEvents = async () => {
+      try {
+        const response = await fetch("/api/events/student")
+        if (!response.ok) {
+          throw new Error("Failed to fetch my events")
+        }
+        const data = await response.json()
+        setMyEvents(Array.isArray(data) ? data : [])
+      } catch (err) {
+        console.error("Error fetching my events:", err)
+        setMyEvents([])
+      }
+    }
+
+    fetchEvents()
+    fetchMyEvents()
+  }, [])
 
   // Filter events based on search query
   const filteredEvents = events.filter(
     (event) =>
-      event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (event.tags && typeof event.tags === "string" && event.tags.toLowerCase().includes(searchQuery.toLowerCase())),
+      event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (event.tags && event.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))),
   )
 
   if (status === "loading") {
@@ -369,11 +333,10 @@ export default function StudentDashboard() {
   return (
     <DashboardLayout
       appName="ASTU Events"
-      appLogo="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='12' fill='%239ca3af'%3EA%3C/text%3E%3C/svg%3E"
+      appLogo="/placeholder.svg?height=32&width=32"
       helpText="Need Assistance?"
       helpLink="/dashboard/student/support"
     >
-     
       <div className="container mx-auto p-4 md:p-6 space-y-8">
         {/* Welcome Section with Theme Toggle */}
         <div className="rounded-lg border bg-card p-6 shadow-sm">
@@ -400,10 +363,7 @@ export default function StudentDashboard() {
                 <Clock className="mr-1 inline-block h-4 w-4" />
                 Last login: {new Date().toLocaleDateString()}
               </span>
-              <Button variant="outline" size="sm" onClick={toggleTheme} className="ml-0 sm:ml-2">
-                {theme === "light" ? <Moon className="h-4 w-4 mr-1" /> : <Sun className="h-4 w-4 mr-1" />}
-                {theme === "light" ? "Dark" : "Light"} Mode
-              </Button>
+              
             </div>
           </div>
         </div>
@@ -485,7 +445,7 @@ export default function StudentDashboard() {
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h2 className="text-2xl font-bold">My Events</h2>
-            
+           
           </div>
 
           <Tabs defaultValue="upcoming" className="w-full" onValueChange={setActiveTab}>
@@ -497,110 +457,96 @@ export default function StudentDashboard() {
             </TabsList>
 
             <TabsContent value="upcoming" className="mt-0">
-              {loading ? (
+              {loading &&
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {[1, 2, 3].map((i) => (
                     <EventCardSkeleton key={i} />
                   ))}
                 </div>
-              ) : error ? (
-                <div className="text-center text-red-500 p-4 border rounded-lg">
-                  <AlertCircle className="h-5 w-5 mx-auto mb-2" />
-                  {error}
+                }
+              {myEvents && 
+              //   <div className="text-center text-muted-foreground p-8 border rounded-lg">
+              //     <Calendar className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
+              //     <p>You don't have any upcoming events.</p>
+              //     <Button variant="outline" className="mt-4">
+              //       Browse Events
+              //     </Button>
+              //   </div>
+              // }
+              // <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              //     {myEvents
+              //       .filter((event) => event.status === "Registered")
+              //       .map((event) => (
+              //         <EventCard key={event.id} event={event} />
+              //       ))}
+              //   </div>
+              <Card key={myEvents.id className="overflow-hidden transition-all duration-200 hover:shadow-md">
+              <div className="aspect-video relative">
+                <Image
+                  src={event.image || "/placeholder.svg?height=160&width=320"}
+                  alt={event.title}
+                  fill
+                  className="object-cover"
+                />
+                <Badge className="absolute right-2 top-2 bg-primary">{event.category}</Badge>
+              </div>
+              <CardHeader className="p-4">
+                <CardTitle className="line-clamp-1 text-lg">{event.title}</CardTitle>
+                <CardDescription className="flex items-center gap-1 text-xs">
+                  <Calendar className="h-3 w-3" />
+                  {event.date} • {event.startTime}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <p className="line-clamp-2 text-sm text-muted-foreground">{event.description}</p>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {myEvents.tags &&
+                    event.tags.map((tag) => (
+                      <Badge key={tag} variant="outline" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
                 </div>
-              ) : myEvents.length === 0 ? (
-                <div className="text-center text-muted-foreground p-8 border rounded-lg">
-                  <Calendar className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
-                  <p>You don't have any upcoming events.</p>
-                  <Button variant="outline" className="mt-4">
-                    Browse Events
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {myEvents.map((myEvent) => (
-                    <EventCard key={myEvent.id} event={myEvent} />
-                  ))}
-                </div>
-              )}
+              </CardContent>
+              <CardFooter className="p-4 pt-0 flex items-center justify-between">
+                <Badge
+                  variant={event.capacity - (event._count?.registrations || 0) < 10 ? "destructive" : "outline"}
+                >
+                  {event.capacity - (event._count?.registrations || 0)} Seats Available
+                </Badge>
+                
+              </CardFooter>
+            </Card>
+              
+              }
             </TabsContent>
 
             <TabsContent value="past" className="mt-0">
-              {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[1, 2, 3].map((i) => (
-                    <EventCardSkeleton key={i} />
-                  ))}
-                </div>
-              ) : error ? (
-                <div className="text-center text-red-500 p-4 border rounded-lg">
-                  <AlertCircle className="h-5 w-5 mx-auto mb-2" />
-                  {error}
-                </div>
-              ) : events.length === 0 ? (
-                <div className="text-center text-muted-foreground p-8 border rounded-lg">
-                  <Calendar className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
-                  <p>You don't have any past events.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {events.map((event) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {myEvents
+                  .filter((event) => event.status === "Attended" || event.status === "Feedback Submitted")
+                  .map((event) => (
                     <EventCard key={event.id} event={event} />
                   ))}
-                </div>
-              )}
+              </div>
             </TabsContent>
 
             <TabsContent value="waitlisted" className="mt-0">
-              {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[1, 2, 3].map((i) => (
-                    <EventCardSkeleton key={i} />
-                  ))}
-                </div>
-              ) : error ? (
-                <div className="text-center text-red-500 p-4 border rounded-lg">
-                  <AlertCircle className="h-5 w-5 mx-auto mb-2" />
-                  {error}
-                </div>
-              ) : events.length === 0 ? (
-                <div className="text-center text-muted-foreground p-8 border rounded-lg">
-                  <Calendar className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
-                  <p>You don't have any waitlisted events.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {events.map((event) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {myEvents
+                  .filter((event) => event.status === "Waitlisted")
+                  .map((event) => (
                     <EventCard key={event.id} event={event} />
                   ))}
-                </div>
-              )}
+              </div>
             </TabsContent>
 
             <TabsContent value="all" className="mt-0">
-              {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[1, 2, 3].map((i) => (
-                    <EventCardSkeleton key={i} />
-                  ))}
-                </div>
-              ) : error ? (
-                <div className="text-center text-red-500 p-4 border rounded-lg">
-                  <AlertCircle className="h-5 w-5 mx-auto mb-2" />
-                  {error}
-                </div>
-              ) : events.length === 0 ? (
-                <div className="text-center text-muted-foreground p-8 border rounded-lg">
-                  <Calendar className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
-                  <p>You don't have any events.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {events.map((event) => (
-                    <EventCard key={event.id} event={event} />
-                  ))}
-                </div>
-              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {myEvents.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
             </TabsContent>
           </Tabs>
         </div>
@@ -673,28 +619,28 @@ export default function StudentDashboard() {
               {filteredEvents.map((event) => (
                 <Card key={event.id} className="overflow-hidden transition-all duration-200 hover:shadow-md">
                   <div className="aspect-video relative">
-                    {/* <Image
-                      src={event.images ? event.images.split(",")[0] : "/placeholder.svg?height=160&width=320"}
+                    <Image
+                      src={event.image || "/placeholder.svg?height=160&width=320"}
                       alt={event.title}
                       fill
                       className="object-cover"
-                    /> */}
+                    />
                     <Badge className="absolute right-2 top-2 bg-primary">{event.category}</Badge>
                   </div>
                   <CardHeader className="p-4">
                     <CardTitle className="line-clamp-1 text-lg">{event.title}</CardTitle>
                     <CardDescription className="flex items-center gap-1 text-xs">
                       <Calendar className="h-3 w-3" />
-                      {new Date(event.date).toLocaleDateString()} • {event.startTime}
+                      {event.date} • {event.startTime}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-4 pt-0">
                     <p className="line-clamp-2 text-sm text-muted-foreground">{event.description}</p>
                     <div className="flex flex-wrap gap-1 mt-2">
                       {event.tags &&
-                        event.tags.split(",").map((tag) => (
+                        event.tags.map((tag) => (
                           <Badge key={tag} variant="outline" className="text-xs">
-                            {tag.trim()}
+                            {tag}
                           </Badge>
                         ))}
                     </div>
@@ -708,10 +654,7 @@ export default function StudentDashboard() {
                     <Button
                       size="sm"
                       onClick={() => {
-                        toast({
-                          title: "Registration Successful",
-                          description: `You've registered for ${event.title}`,
-                        })
+                        handleRegistration(event.id)
                       }}
                     >
                       Register
