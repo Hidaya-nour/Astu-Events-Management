@@ -46,15 +46,47 @@ export default function ProfileHeader() {
       setIsUploading(false)
     }
   }
+  // coverimagehandler
+  const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
 
+    try {
+      setIsUploading(true)
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      setUser((prev) => ({ ...prev, coverImage: URL.createObjectURL(file) }))
+      toast({
+        title: "Cover image updated",
+        description: "Your cover image has been updated successfully.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploading(false)
+    }
+  }
   return (
     <div className="rounded-lg bg-white shadow-md dark:bg-gray-800">
       <div className="relative h-48 w-full overflow-hidden rounded-t-lg sm:h-64">
         <Image src={user.coverImage || "/placeholder.svg"} alt="Cover" className="object-cover" fill priority />
-        <Button size="sm" variant="secondary" className="absolute bottom-4 right-4">
+        <label htmlFor="cover-upload" className="absolute bottom-4 right-4">
+         
           <Camera className="mr-2 h-4 w-4" />
-          Change Cover
-        </Button>
+              <input
+                id="cover-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleCoverImageUpload}
+                disabled={isUploading}
+              />
+        </label>
+        
       </div>
 
       <div className="px-6 pb-6">
