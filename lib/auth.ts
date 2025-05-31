@@ -93,21 +93,31 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.department = user.department;
-        token.year = user.year;
+        return {
+          ...token,
+          id: user.id,
+          role: user.role,
+          department: user.department,
+          year: user.year,
+          email: user.email,
+          name: user.name,
+        };
       }
       return token;
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
-        session.user.department = token.department as string | undefined;
-        session.user.year = token.year as number | undefined;
-      }
-      return session;
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          id: token.id as string,
+          role: token.role as string,
+          department: token.department as string | undefined,
+          year: token.year as number | undefined,
+          email: token.email as string,
+          name: token.name as string,
+        },
+      };
     },
   },
   debug: process.env.NODE_ENV === 'development',

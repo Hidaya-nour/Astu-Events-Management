@@ -134,7 +134,7 @@ export function EventCard({ event, variant = "default", onRegister, onCancelRegi
         <CardContent className="p-4">
           <div className="flex gap-3">
             <img
-              src={getImageUrl(event.images)}
+              src={getImageUrl(event.images) || null}
               alt={event.title}
               className="w-16 h-16 rounded-lg object-cover"
             />

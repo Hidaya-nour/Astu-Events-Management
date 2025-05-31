@@ -263,8 +263,16 @@ export async function GET(request: Request) {
 
     if (search) {
       where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } }
+        { 
+          title: { 
+            contains: search.toLowerCase()
+          } 
+        },
+        { 
+          description: { 
+            contains: search.toLowerCase()
+          } 
+        }
       ];
     }
 
@@ -321,6 +329,11 @@ export async function GET(request: Request) {
               image: true,
             },
           },
+          _count: {
+            select: {
+              registrations: true
+            }
+          }
         },
       }),
       prisma.event.count({ where }),
@@ -334,6 +347,9 @@ export async function GET(request: Request) {
         name: event.createdBy.name,
         avatar: event.createdBy.image,
       },
+      _count: {
+        registrations: event._count.registrations
+      }
     }));
 
     return NextResponse.json({

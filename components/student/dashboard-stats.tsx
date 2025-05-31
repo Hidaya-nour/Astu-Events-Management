@@ -13,25 +13,32 @@ export function DashboardStats() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Fetch upcoming events
-        const upcomingRes = await fetch('/api/events?sort=upcoming')
+        // Fetch registered events
+        const upcomingRes = await fetch('/api/registration/student')
         const upcomingData = await upcomingRes.json()
         
-        // Fetch this week's events
+        // Filter for confirmed registrations only
+        const confirmedEvents = upcomingData.filter((event: any) => event.status === 'CONFIRMED')
+        
+        // Filter upcoming events
         const today = new Date()
+        const upcomingEvents = confirmedEvents.filter((event: any) => new Date(event.date) >= today)
+        
+        // Filter this week's events
         const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-        const weekRes = await fetch(`/api/events?startDate=${today.toISOString()}&endDate=${nextWeek.toISOString()}`)
-        const weekData = await weekRes.json()
+        const thisWeekEvents = confirmedEvents.filter((event: any) => {
+          const eventDate = new Date(event.date)
+          return eventDate >= today && eventDate <= nextWeek
+        })
 
-        // Fetch attended events
-        const attendedRes = await fetch('/api/events?status=registered&sort=past')
-        const attendedData = await attendedRes.json()
+        // Filter past attended events
+        const pastEvents = confirmedEvents.filter((event: any) => new Date(event.date) < today)
 
         setStats({
-          upcomingEvents: upcomingData.total || 0,
-          thisWeekEvents: weekData.total || 0,
+          upcomingEvents: upcomingEvents.length,
+          thisWeekEvents: thisWeekEvents.length,
           favorites: 0, // This would need a separate favorites API endpoint
-          attended: attendedData.total || 0
+          attended: pastEvents.length
         })
       } catch (error) {
         console.error('Error fetching stats:', error)

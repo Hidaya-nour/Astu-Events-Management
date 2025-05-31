@@ -23,6 +23,11 @@ export async function GET() {
         event: {
           include: {
             createdBy: true,
+            _count: {
+              select: {
+                registrations: true
+              }
+            }
           },
         },
       },
@@ -39,6 +44,12 @@ export async function GET() {
       status: registration.status,
       category: registration.event.category,
       organizer: registration.event.createdBy.name,
+      organizerAvatar: registration.event.createdBy.image,
+      createdById: registration.event.createdBy.id,
+      capacity: registration.event.capacity,
+      _count: {
+        registrations: registration.event._count.registrations
+      },
       tags: registration.event.tags ? registration.event.tags.split(',') : [],
       rating: null, // This will be fetched separately if needed
     }))
