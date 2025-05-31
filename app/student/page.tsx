@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { AlertCircle, Calendar, Clock, MapPin, Plus } from "lucide-react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "react-toastify"
 
 interface Event {
   id: string
@@ -78,7 +78,6 @@ function UpcomingEvent({ event }) {
 }
 export default function StudentDashboard() {
   const { data: session, status } = useSession()
-  const { toast } = useToast()
   const [events, setEvents] = useState<Event[]>([])
   const [myEvents, setMyEvents] = useState<Event[]>([])
   const [recommendedEvents, setRecommendedEvents] = useState<Event[]>([])
@@ -118,11 +117,7 @@ export default function StudentDashboard() {
       setEvents(transformedEvents)
     } catch (err) {
       setError(err.message)
-      toast({
-        title: "Error",
-        description: "Failed to fetch events",
-        variant: "destructive",
-      })
+      toast.error("Failed to fetch events")
     }
   }
 
@@ -162,11 +157,7 @@ export default function StudentDashboard() {
       setMyEvents(transformedEvents)
     } catch (err) {
       setError(err.message)
-      toast({
-        title: "Error",
-        description: "Failed to fetch your events",
-        variant: "destructive",
-      })
+      toast.error("Failed to fetch your events")
     }
   }
 
@@ -179,11 +170,7 @@ export default function StudentDashboard() {
       setRecommendedEvents(data.events)
     } catch (err) {
       setError(err.message)
-      toast({
-        title: "Error",
-        description: "Failed to fetch recommended events",
-        variant: "destructive",
-      })
+      toast.error("Failed to fetch recommended events")
     }
   }
 
@@ -208,29 +195,22 @@ export default function StudentDashboard() {
         fetchMyEvents(),
       ])
 
-      toast({
-        title: "Success",
-        description: "Successfully registered for the event",
-      })
+      // toast.success("Successfully registered for the event")
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to register for the event",
-        variant: "destructive",
-      })
+      // toast.error("Failed to register for the event")
     }
   }
 
   // Handle event unregistration
-  const handleUnregister = async (eventId: string) => {
+  const handleCancelRegistration = async (eventId: string) => {
     try {
       const response = await fetch(`/api/registration/${eventId}`, {
-        method: 'DELETE',
+        method: 'delete',
       })
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Failed to unregister from event')
+        throw new Error(data.error || 'Failed to cancel registration')
       }
 
       // Refresh events after unregistration
@@ -239,16 +219,9 @@ export default function StudentDashboard() {
         fetchMyEvents(),
       ])
 
-      toast({
-        title: "Success",
-        description: "Successfully unregistered from the event",
-      })
+      // toast.success("Successfully unregistered from the event")
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to unregister from the event",
-        variant: "destructive",
-      })
+      // toast.error("Failed to unregister from the event")
     }
   }
 
@@ -272,11 +245,7 @@ export default function StudentDashboard() {
       setEvents(data.events)
     } catch (err) {
       setError(err.message)
-      toast({
-        title: "Error",
-        description: "Failed to fetch filtered events",
-        variant: "destructive",
-      })
+      toast.error("Failed to fetch filtered events")
     }
   }
 
@@ -447,7 +416,7 @@ export default function StudentDashboard() {
                   key={event.id} 
                   event={event}
                   onRegister={handleRegister}
-                  onCancelRegistration={handleUnregister}
+                  onCancelRegistration={handleCancelRegistration}
                 />
               ))}
             </div>

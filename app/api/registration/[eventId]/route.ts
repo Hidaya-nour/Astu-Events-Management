@@ -9,10 +9,8 @@ export async function POST(
   { params }: { params: { eventId: string } }
 ) {
   try {
-    // Get the eventId first
     const { eventId } = params
 
-    // Check authentication
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -23,7 +21,6 @@ export async function POST(
 
     const userId = session.user.id
 
-    // Check if event exists and has available capacity
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       include: {
@@ -37,7 +34,6 @@ export async function POST(
       return NextResponse.json({ error: "Event not found" }, { status: 404 })
     }
 
-    // Check if registration deadline has passed
     if (event.registrationDeadline && new Date(event.registrationDeadline) < new Date()) {
       return NextResponse.json(
         { error: "Registration deadline has passed" },
@@ -47,58 +43,58 @@ export async function POST(
 
     const existingRegistration = await prisma.registration.findFirst({
       where: {
-        AND: [
-          { eventId },
-          { userId },
-          {
-            OR: [
-              { status: RegistrationStatus.PENDING },
-              { status: RegistrationStatus.CONFIRMED },
-              { status: RegistrationStatus.WAITLISTED }
-            ]
-          }
-        ]
-      },
+        eventId,
+        userId
+      }
     });
-    
 
     if (existingRegistration) {
-      return NextResponse.json(
-        { error: "Already registered for this event" },
-        { status: 400 }
-      )
-    }
+      // ❌ Block re-registration if status is active
+      if (
+        existingRegistration.status === RegistrationStatus.CONFIRMED ||
+        existingRegistration.status === RegistrationStatus.PENDING ||
+        existingRegistration.status === RegistrationStatus.WAITLISTED
+      ) {
+        return NextResponse.json(
+          { error: "Already registered for this event" },
+          { status: 400 }
+        )
+      }
 
-    // Check if event is at capacity
-    if (event._count.registrations >= event.capacity) {
-      // Create waitlist registration
-      const registration = await prisma.registration.create({
+      // ✅ If status is CANCELLED, update it
+      const updatedRegistration = await prisma.registration.update({
+        where: { id: existingRegistration.id },
         data: {
-          eventId,
-          userId,
-          status: RegistrationStatus.WAITLISTED,
-        },
+          status:
+            event._count.registrations >= event.capacity
+              ? RegistrationStatus.WAITLISTED
+              : RegistrationStatus.CONFIRMED
+        }
       })
 
       return NextResponse.json({
-        message: "Added to waitlist",
-        registration,
+        message: `Registration status updated to ${updatedRegistration.status}`,
+        registration: updatedRegistration
       })
     }
 
-    // Create regular registration
-    const registration = await prisma.registration.create({
+    // If no previous registration, create a new one
+    const newRegistration = await prisma.registration.create({
       data: {
         eventId,
         userId,
-        status: RegistrationStatus.CONFIRMED,
-      },
+        status:
+          event._count.registrations >= event.capacity
+            ? RegistrationStatus.WAITLISTED
+            : RegistrationStatus.CONFIRMED
+      }
     })
 
     return NextResponse.json({
       message: "Successfully registered for event",
-      registration,
+      registration: newRegistration
     })
+
   } catch (error) {
     console.error("Registration error:", error)
     return NextResponse.json(
@@ -107,6 +103,7 @@ export async function POST(
     )
   }
 }
+
 
 export async function DELETE(
   request: Request,
@@ -126,8 +123,8 @@ export async function DELETE(
 
     const userId = session.user.id;
 
-    // Find and delete the registration
-    const registration = await prisma.registration.delete({
+    // First check if the registration exists
+    const existingRegistration = await prisma.registration.findUnique({
       where: {
         eventId_userId: {
           eventId,
@@ -135,6 +132,30 @@ export async function DELETE(
         },
       },
     });
+
+    if (!existingRegistration) {
+      return NextResponse.json(
+        { error: "Registration not found" },
+        { status: 404 }
+      );
+    }
+
+    console.log('Found registration:', existingRegistration);
+
+    // Find and update the registration status to CANCELLED
+    const registration = await prisma.registration.update({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId,
+        },
+      },
+      data: {
+        status: RegistrationStatus.CANCELLED,
+      },
+    });
+
+    console.log('Updated registration:', registration);
 
     return NextResponse.json({
       message: "Successfully cancelled registration",
