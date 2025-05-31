@@ -20,9 +20,47 @@ const mockUser = {
 
 export default function ProfileHeader() {
   const { toast } = useToast()
-  const [isUploading, setIsUploading] = useState(false)
   const [user, setUser] = useState(mockUser)
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [newName, setNewName] = useState(user.name)
 
+  const handleEditName = () => {
+    setIsEditingName(true)
+    console.log("clicked")
+  }
+
+  const handleSaveName = async () => {
+    if (!newName.trim()) {
+      toast({
+        title: "Error",
+        description: "Name cannot be empty.",
+        variant: "destructive",
+      })
+      return
+    }
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      setUser((prev) => ({ ...prev, name: newName }))
+      setIsEditingName(false)
+      toast({
+        title: "Name updated",
+        description: "Your profile name has been updated successfully.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update name. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setNewName(user.name)
+    setIsEditingName(false)
+  }
+  const [isUploading, setIsUploading] = useState(false)
   const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -119,11 +157,31 @@ export default function ProfileHeader() {
 
           <div className="flex flex-1 flex-col items-center text-center sm:items-start sm:pl-6 sm:text-left">
             <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold">{user.name}</h2>
-              <Button size="icon" variant="ghost" className="h-8 w-8">
-                <Edit className="h-4 w-4" />
-              </Button>
-            </div>
+              {isEditingName ? (
+                <>
+                  <input
+                    type="text"
+                    className="text-2xl font-bold border border-gray-300 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    autoFocus
+                  />
+                  <Button size="icon" variant="ghost" onClick={handleSaveName} className="h-8 w-8">
+                    ✅
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={handleCancelEdit} className="h-8 w-8">
+                    ❌
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-bold">{user.name}</h2>
+                  <Button onClick={handleEditName} className="h-8 w-8" size="icon" variant="ghost">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+          </div>
             <p className="mt-1 text-gray-600 dark:text-gray-400">{user.bio}</p>
             <div className="mt-3 flex flex-wrap gap-3">
               <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
