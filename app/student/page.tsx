@@ -447,7 +447,7 @@ export default function StudentDashboard() {
                   key={event.id} 
                   event={event}
                   onRegister={handleRegister}
-                  onUnregister={handleUnregister}
+                  onCancelRegistration={handleUnregister}
                 />
               ))}
             </div>

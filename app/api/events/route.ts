@@ -214,6 +214,18 @@ export async function GET(request: Request) {
       where.createdById = userId;
     }
     
+    // Exclude events that the user has already registered for
+    if (userId) {
+      where.NOT = {
+        registrations: {
+          some: {
+            userId: userId,
+            status: 'CONFIRMED'
+          }
+        }
+      };
+    }
+    
     if (startDate || endDate) {
       where.date = {};
       if (startDate) {
@@ -235,9 +247,18 @@ export async function GET(request: Request) {
     }
 
     if (status.length > 0) {
-      where.approvalStatus = {
-        in: status.map(s => s.trim().toUpperCase())
-      };
+      if (status.includes('registered')) {
+        where.registrations = {
+          some: {
+            userId: userId,
+            status: 'CONFIRMED'
+          }
+        };
+      } else {
+        where.approvalStatus = {
+          in: status.map(s => s.trim().toUpperCase())
+        };
+      }
     }
 
     if (search) {

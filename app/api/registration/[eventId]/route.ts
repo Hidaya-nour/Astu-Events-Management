@@ -106,4 +106,45 @@ export async function POST(
       { status: 500 }
     )
   }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { eventId: string } }
+) {
+  try {
+    const { eventId } = params;
+
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please log in to cancel registration' },
+        { status: 401 }
+      );
+    }
+
+    const userId = session.user.id;
+
+    // Find and delete the registration
+    const registration = await prisma.registration.delete({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId,
+        },
+      },
+    });
+
+    return NextResponse.json({
+      message: "Successfully cancelled registration",
+      registration,
+    });
+  } catch (error) {
+    console.error("Cancellation error:", error);
+    return NextResponse.json(
+      { error: "Failed to cancel registration - Please try again later" },
+      { status: 500 }
+    );
+  }
 } 

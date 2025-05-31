@@ -21,7 +21,7 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
   const [location, setLocation] = useState("")
   const [activeFilters, setActiveFilters] = useState<string[]>([])
 
-  useEffect(() => {
+  const handleSearch = () => {
     const filters = {
       search,
       category,
@@ -29,7 +29,7 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
       location,
     }
     onSearch(filters)
-  }, [search, category, date, location, onSearch])
+  }
 
   const handleCategoryChange = (value: string) => {
     setCategory(prev => {
@@ -77,9 +77,14 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
             className="pl-10"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSearch()
+              }
+            }}
           />
         </div>
-        <Button variant="outline" size="icon">
+        <Button variant="outline" size="icon" onClick={handleSearch}>
           <Filter className="h-4 w-4" />
         </Button>
       </div>
@@ -121,6 +126,10 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
             <SelectItem value="ONLINE">Online</SelectItem>
           </SelectContent>
         </Select>
+
+        <Button onClick={handleSearch} variant="secondary">
+          Apply Filters
+        </Button>
       </div>
 
       {activeFilters.length > 0 && (
@@ -131,7 +140,10 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
               key={filter} 
               variant="secondary" 
               className="gap-1 cursor-pointer"
-              onClick={() => removeFilter(filter)}
+              onClick={() => {
+                removeFilter(filter)
+                handleSearch()
+              }}
             >
               {filter}
               <X className="h-3 w-3" />
