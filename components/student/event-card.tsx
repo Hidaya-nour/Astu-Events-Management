@@ -33,10 +33,10 @@ interface EventCardProps {
   }
   variant?: "default" | "compact"
   onRegister?: (eventId: string) => Promise<void>
-  onUnregister?: (eventId: string) => Promise<void>
+  onCancelRegistration?: (eventId: string) => Promise<void>
 }
 
-export function EventCard({ event, variant = "default", onRegister, onUnregister }: EventCardProps) {
+export function EventCard({ event, variant = "default", onRegister, onCancelRegistration }: EventCardProps) {
   const [isRegistering, setIsRegistering] = useState(false)
 
   const getImageUrl = (images: string): string => {
@@ -67,13 +67,13 @@ export function EventCard({ event, variant = "default", onRegister, onUnregister
 
   const handleAction = async () => {
     if (event.isRegistered) {
-      if (!onUnregister) return;
+      if (!onCancelRegistration) return;
       try {
         setIsRegistering(true);
-        await onUnregister(event.id);
-        toast.success("Successfully unregistered from event");
+        await onCancelRegistration(event.id);
+        toast.success("Successfully cancelled registration");
       } catch (error) {
-        toast.error("Failed to unregister from event");
+        toast.error("Failed to cancel registration");
       } finally {
         setIsRegistering(false);
       }
@@ -96,7 +96,7 @@ export function EventCard({ event, variant = "default", onRegister, onUnregister
     if (event.isRegistered) {
       switch (event.registrationStatus) {
         case "CONFIRMED":
-          return "Registered";
+          return "Cancel Registration";
         case "PENDING":
           return "Pending";
         case "WAITLISTED":
@@ -104,7 +104,7 @@ export function EventCard({ event, variant = "default", onRegister, onUnregister
         case "CANCELLED":
           return "Cancelled";
         default:
-          return "Unregister";
+          return "Cancel Registration";
       }
     }
     return "Register";
@@ -134,7 +134,7 @@ export function EventCard({ event, variant = "default", onRegister, onUnregister
         <CardContent className="p-4">
           <div className="flex gap-3">
             <img
-              src={getImageUrl(event.images)}
+              src={getImageUrl(event.images) || null}
               alt={event.title}
               className="w-16 h-16 rounded-lg object-cover"
             />

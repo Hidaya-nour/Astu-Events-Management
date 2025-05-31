@@ -214,6 +214,18 @@ export async function GET(request: Request) {
       where.createdById = userId;
     }
     
+    // Exclude events that the user has already registered for
+    if (userId) {
+      where.NOT = {
+        registrations: {
+          some: {
+            userId: userId,
+            status: 'CONFIRMED'
+          }
+        }
+      };
+    }
+    
     if (startDate || endDate) {
       where.date = {};
       if (startDate) {
@@ -235,15 +247,32 @@ export async function GET(request: Request) {
     }
 
     if (status.length > 0) {
-      where.approvalStatus = {
-        in: status.map(s => s.trim().toUpperCase())
-      };
+      if (status.includes('registered')) {
+        where.registrations = {
+          some: {
+            userId: userId,
+            status: 'CONFIRMED'
+          }
+        };
+      } else {
+        where.approvalStatus = {
+          in: status.map(s => s.trim().toUpperCase())
+        };
+      }
     }
 
     if (search) {
       where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } }
+        { 
+          title: { 
+            contains: search.toLowerCase()
+          } 
+        },
+        { 
+          description: { 
+            contains: search.toLowerCase()
+          } 
+        }
       ];
     }
 
@@ -300,6 +329,11 @@ export async function GET(request: Request) {
               image: true,
             },
           },
+          _count: {
+            select: {
+              registrations: true
+            }
+          }
         },
       }),
       prisma.event.count({ where }),
@@ -313,6 +347,9 @@ export async function GET(request: Request) {
         name: event.createdBy.name,
         avatar: event.createdBy.image,
       },
+      _count: {
+        registrations: event._count.registrations
+      }
     }));
 
     return NextResponse.json({

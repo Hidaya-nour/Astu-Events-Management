@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { DashboardStats } from "@/components/student/dashboard-stats"
 import { EventCard } from "@/components/student/event-card"
-import { SearchFilters } from "@/components/student/search-filters"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -12,7 +11,9 @@ import { Badge } from "@/components/ui/badge"
 import { AlertCircle, Calendar, Clock, MapPin, Plus } from "lucide-react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "react-toastify"
+import { EventFilters } from "@/components/student/event-filters"
+import { useRouter } from "next/navigation"
 
 interface Event {
   id: string
@@ -36,6 +37,17 @@ interface Event {
   }
   isRegistered?: boolean
   isFavorite?: boolean
+}
+
+// Add type for the session user
+interface SessionUser {
+  id: string
+  name: string
+  email: string
+  image?: string
+  department?: string
+  year?: number
+  role?: string
 }
 
 function UpcomingEvent({ event }) {
@@ -76,20 +88,97 @@ function UpcomingEvent({ event }) {
     </Card>
   )
 }
+
 export default function StudentDashboard() {
   const { data: session, status } = useSession()
-  const { toast } = useToast()
+  const router = useRouter()
+  const user = session?.user as SessionUser | undefined
   const [events, setEvents] = useState<Event[]>([])
   const [myEvents, setMyEvents] = useState<Event[]>([])
   const [recommendedEvents, setRecommendedEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [filters, setFilters] = useState<{
+    search?: string
+    category?: string
+    department?: string
+    eventType?: string
+    dateRange?: string
+    registrationStatus?: string
+    showRelevantOnly?: boolean
+    hideExpired?: boolean
+    yearLevel?: number
+  }>({})
 
-  // Fetch all events
+  // Fetch all events with filters
   const fetchEvents = async () => {
     try {
-      const response = await fetch('/api/events?sort=upcoming')
-      if (!response.ok) throw new Error('Failed to fetch events')
+      const queryParams = new URLSearchParams()
+      
+      // Add search term
+      if (filters.search) {
+        queryParams.set('search', filters.search.trim())
+      }
+
+      // Add category filter
+      if (filters.category && filters.category !== 'ALL') {
+        queryParams.set('category', filters.category)
+      }
+
+      // Add date range filter
+      if (filters.dateRange && filters.dateRange !== 'ALL') {
+        const today = new Date()
+        const endOfDay = new Date(today)
+        endOfDay.setHours(23, 59, 59, 999)
+
+        switch (filters.dateRange) {
+          case 'Today':
+            queryParams.set('startDate', today.toISOString())
+            queryParams.set('endDate', endOfDay.toISOString())
+            break
+          case 'This Week':
+            const endOfWeek = new Date(today)
+            endOfWeek.setDate(today.getDate() + 7)
+            queryParams.set('startDate', today.toISOString())
+            queryParams.set('endDate', endOfWeek.toISOString())
+            break
+          case 'This Month':
+            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+            queryParams.set('startDate', today.toISOString())
+            queryParams.set('endDate', endOfMonth.toISOString())
+            break
+          case 'Upcoming':
+            queryParams.set('startDate', today.toISOString())
+            break
+        }
+      }
+
+      // Add event type filter
+      if (filters.eventType && filters.eventType !== 'ALL') {
+        queryParams.set('eventType', filters.eventType)
+      }
+
+      // Add department filter
+      if (filters.department && filters.department !== 'ALL') {
+        queryParams.set('department', filters.department)
+      }
+
+      // Add registration status filter
+      if (filters.registrationStatus && filters.registrationStatus !== 'ALL') {
+        queryParams.set('status', filters.registrationStatus)
+      }
+
+      // Add sorting
+      queryParams.set('sort', 'upcoming')
+
+      console.log('Fetching events with params:', queryParams.toString())
+      const response = await fetch(`/api/events?${queryParams.toString()}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch events')
+      }
+      
       const data = await response.json()
       
       const transformedEvents = data.events.map((event: any) => {
@@ -117,12 +206,9 @@ export default function StudentDashboard() {
       
       setEvents(transformedEvents)
     } catch (err) {
+      console.error('Error fetching events:', err)
       setError(err.message)
-      toast({
-        title: "Error",
-        description: "Failed to fetch events",
-        variant: "destructive",
-      })
+      toast.error(err.message || "Failed to fetch events")
     }
   }
 
@@ -155,18 +241,14 @@ export default function StudentDashboard() {
           registrations: event._count?.registrations || 0
         },
         isRegistered: true,
-        registrationStatus: event.status, // This comes from the registration record
+        registrationStatus: event.status,
         isFavorite: event.isFavorite || false
       }))
       
       setMyEvents(transformedEvents)
     } catch (err) {
       setError(err.message)
-      toast({
-        title: "Error",
-        description: "Failed to fetch your events",
-        variant: "destructive",
-      })
+      toast.error("Failed to fetch your events")
     }
   }
 
@@ -179,11 +261,7 @@ export default function StudentDashboard() {
       setRecommendedEvents(data.events)
     } catch (err) {
       setError(err.message)
-      toast({
-        title: "Error",
-        description: "Failed to fetch recommended events",
-        variant: "destructive",
-      })
+      toast.error("Failed to fetch recommended events")
     }
   }
 
@@ -208,29 +286,22 @@ export default function StudentDashboard() {
         fetchMyEvents(),
       ])
 
-      toast({
-        title: "Success",
-        description: "Successfully registered for the event",
-      })
+      // toast.success("Successfully registered for the event")
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to register for the event",
-        variant: "destructive",
-      })
+      // toast.error("Failed to register for the event")
     }
   }
 
   // Handle event unregistration
-  const handleUnregister = async (eventId: string) => {
+  const handleCancelRegistration = async (eventId: string) => {
     try {
       const response = await fetch(`/api/registration/${eventId}`, {
-        method: 'DELETE',
+        method: 'delete',
       })
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Failed to unregister from event')
+        throw new Error(data.error || 'Failed to cancel registration')
       }
 
       // Refresh events after unregistration
@@ -239,44 +310,9 @@ export default function StudentDashboard() {
         fetchMyEvents(),
       ])
 
-      toast({
-        title: "Success",
-        description: "Successfully unregistered from the event",
-      })
+      // toast.success("Successfully unregistered from the event")
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to unregister from the event",
-        variant: "destructive",
-      })
-    }
-  }
-
-  // Handle search and filters
-  const handleSearch = async (filters: {
-    search: string
-    category: string[]
-    date: string
-    location: string
-  }) => {
-    try {
-      const queryParams = new URLSearchParams()
-      if (filters.search) queryParams.set('search', filters.search)
-      if (filters.category.length) queryParams.set('category', filters.category.join(','))
-      if (filters.date) queryParams.set('date', filters.date)
-      if (filters.location) queryParams.set('location', filters.location)
-
-      const response = await fetch(`/api/events?${queryParams.toString()}`)
-      if (!response.ok) throw new Error('Failed to fetch filtered events')
-      const data = await response.json()
-      setEvents(data.events)
-    } catch (err) {
-      setError(err.message)
-      toast({
-        title: "Error",
-        description: "Failed to fetch filtered events",
-        variant: "destructive",
-      })
+      // toast.error("Failed to unregister from the event")
     }
   }
 
@@ -299,7 +335,7 @@ export default function StudentDashboard() {
     if (status === 'authenticated') {
       loadData()
     }
-  }, [status])
+  }, [status, filters])
 
   if (status === 'loading') {
     return (
@@ -330,16 +366,16 @@ export default function StudentDashboard() {
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16 border-2 border-primary">
                 <AvatarImage
-                  src={session?.user?.image || "/placeholder.svg?height=64&width=64"}
-                  alt={session?.user?.name || "User"}
+                  src={user?.image || "/placeholder.svg?height=64&width=64"}
+                  alt={user?.name || "User"}
                 />
-                <AvatarFallback>{(session?.user?.name || "User").charAt(0)}</AvatarFallback>
+                <AvatarFallback>{(user?.name || "User").charAt(0)}</AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-2xl font-bold">Welcome, {session?.user?.name || "User"}</h1>
+                <h1 className="text-2xl font-bold">Welcome, {user?.name || "User"}</h1>
                 <p className="text-muted-foreground">
-                  {session?.user?.department && `${session.user.department} • `}
-                  {session?.user?.year && `${session.user.year} `}
+                  {user?.department && `${user.department} • `}
+                  {user?.year && `Year ${user.year}`}
                 </p>
               </div>
             </div>
@@ -386,16 +422,25 @@ export default function StudentDashboard() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {events.slice(0, 3).map((event) => (
-                    <EventCard 
-                      key={event.id} 
-                      event={event} 
-                      variant="compact"
-                      onRegister={handleRegister}
-                    />
+                    <div 
+                      key={event.id}
+                      className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
+                      onClick={() => router.push(`/student/events/${event.id}`)}
+                    >
+                      <EventCard 
+                        event={event} 
+                        variant="compact"
+                        onRegister={handleRegister}
+                      />
+                    </div>
                   ))}
                   {events.length > 3 && (
-                    <Button variant="outline" className="w-full">
-                      View All My Events
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => router.push('/student/events')}
+                    >
+                      View All Events
                     </Button>
                   )}
                 </CardContent>
@@ -408,14 +453,23 @@ export default function StudentDashboard() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {recommendedEvents.slice(0, 3).map((event) => (
-                    <EventCard 
-                      key={event.id} 
-                      event={event} 
-                      variant="compact"
-                      onRegister={handleRegister}
-                    />
+                    <div 
+                      key={event.id}
+                      className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
+                      onClick={() => router.push(`/student/events/${event.id}`)}
+                    >
+                      <EventCard 
+                        event={event} 
+                        variant="compact"
+                        onRegister={handleRegister}
+                      />
+                    </div>
                   ))}
-                  <Button variant="outline" className="w-full">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => router.push('/student/events?tab=recommended')}
+                  >
                     View All Recommendations
                   </Button>
                 </CardContent>
@@ -424,16 +478,35 @@ export default function StudentDashboard() {
           </TabsContent>
 
           <TabsContent value="discover" className="space-y-6">
-            <SearchFilters onSearch={handleSearch} />
+            <div className="flex flex-col sm:flex-row gap-4 justify-between">
+              <EventFilters 
+                onFiltersChange={setFilters}
+                userDepartment={user?.department}
+                userYear={user?.year}
+              />
+            </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {events.map((event) => (
-                <EventCard 
-                  key={event.id} 
-                  event={event}
-                  onRegister={handleRegister}
-                />
+                <div 
+                  key={event.id}
+                  className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
+                  onClick={() => router.push(`/student/events/${event.id}`)}
+                >
+                  <EventCard 
+                    event={event}
+                    onRegister={handleRegister}
+                  />
+                </div>
               ))}
             </div>
+            {events.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No events match your current filters</p>
+                <Button variant="outline" className="mt-4" onClick={() => setFilters({})}>
+                  Clear Filters
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="my-events" className="space-y-6">
@@ -443,12 +516,17 @@ export default function StudentDashboard() {
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {myEvents.map((event) => (
-                <EventCard 
-                  key={event.id} 
-                  event={event}
-                  onRegister={handleRegister}
-                  onUnregister={handleUnregister}
-                />
+                <div 
+                  key={event.id}
+                  className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
+                  onClick={() => router.push(`/student/events/${event.id}`)}
+                >
+                  <EventCard 
+                    event={event}
+                    onRegister={handleRegister}
+                    onCancelRegistration={handleCancelRegistration}
+                  />
+                </div>
               ))}
             </div>
           </TabsContent>
@@ -462,11 +540,16 @@ export default function StudentDashboard() {
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {recommendedEvents.map((event) => (
-                <EventCard 
-                  key={event.id} 
-                  event={event}
-                  onRegister={handleRegister}
-                />
+                <div 
+                  key={event.id}
+                  className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
+                  onClick={() => router.push(`/student/events/${event.id}`)}
+                >
+                  <EventCard 
+                    event={event}
+                    onRegister={handleRegister}
+                  />
+                </div>
               ))}
             </div>
           </TabsContent>

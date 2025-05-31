@@ -21,7 +21,17 @@ import {
 import { Separator } from "@/components/ui/separator"
 
 interface EventFiltersProps {
-  onFiltersChange?: (filters: any) => void
+  onFiltersChange?: (filters: {
+    search?: string
+    category?: string
+    department?: string
+    eventType?: string
+    dateRange?: string
+    registrationStatus?: string
+    showRelevantOnly?: boolean
+    hideExpired?: boolean
+    yearLevel?: number
+  }) => void
   departments?: string[]
   categories?: string[]
   years?: number[]
@@ -97,7 +107,7 @@ export function EventFilters({
       setFilters((prev) => ({ ...prev, eventType: null }))
     } else if (["Today", "This Week", "This Month", "Upcoming"].includes(filter)) {
       setFilters((prev) => ({ ...prev, dateRange: null }))
-    } else if (["Registered", "Not Registered", "Waitlisted"].includes(filter)) {
+    } else if (["Registered", "Not Registered", "Waitlisted", "Pending"].includes(filter)) {
       setFilters((prev) => ({ ...prev, registrationStatus: null }))
     }
   }
@@ -162,6 +172,7 @@ export function EventFilters({
                     <SelectItem value="Registered">Registered</SelectItem>
                     <SelectItem value="Not Registered">Not Registered</SelectItem>
                     <SelectItem value="Waitlisted">Waitlisted</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

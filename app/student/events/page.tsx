@@ -9,6 +9,8 @@ import { EnhancedEventCard } from "@/components/student/enhanced-event-card"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { toast } from "react-toastify"
 import "react-toastify/dist/ReactToastify.css"
+import { useRouter } from "next/navigation"
+import { Card } from "@/components/ui/card"
 
 interface Event {
   id: string
@@ -47,10 +49,13 @@ interface Filters {
 export default function EventsPage() {
   const { data: session, status } = useSession()
   const [filters, setFilters] = useState<Filters>({})
+  const [registeredEvents, setRegisteredEvents] = useState<Event[]>([])
+  const [departmentEvents, setDepartmentEvents] = useState<Event[]>([])
   const [activeTab, setActiveTab] = useState("all")
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
   // Fetch all events
   const fetchEvents = async () => {
@@ -82,10 +87,10 @@ export default function EventsPage() {
     try {
       const response = await fetch('/api/registration/student')
       if (!response.ok) throw new Error('Failed to fetch registered events')
-      const registeredEvents = await response.json()
+      const data = await response.json()
       
       // Transform registered events to match the Event interface
-      const transformedRegisteredEvents = registeredEvents.map((event: any) => ({
+      const transformedRegisteredEvents = data.map((event: any) => ({
         id: event.id,
         title: event.title,
         description: event.description,
@@ -117,19 +122,12 @@ export default function EventsPage() {
         transformedRegisteredEvents.forEach(event => {
           eventMap.set(event.id, event)
         })
-        
+        setRegisteredEvents(transformedRegisteredEvents)
         return Array.from(eventMap.values())
       })
     } catch (err) {
       setError(err.message)
-      toast.error("Failed to fetch registered events", {
-        position: "top-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      })
+      toast.error("Failed to fetch registered events")
     }
   }
 
@@ -249,19 +247,14 @@ export default function EventsPage() {
 
     // Filter by tab first
     if (activeTab === "registered") {
-      result = result.filter(
-        (event) =>
-          event.registrationStatus === "REGISTERED" ||
-          event.registrationStatus === "WAITLISTED" ||
-          event.registrationStatus === "PENDING",
-      )
+      result = registeredEvents
     } else if (activeTab === "recommended") {
       result = result.filter((event) => event.relevance?.includes("RECOMMENDED"))
     } else if (activeTab === "department") {
       result = result.filter(
         (event) =>
           event.department === session?.user?.department ||
-          event.relevance?.includes("DEPARTMENT"),
+          event.relevance?.includes("DEPARTMENT")
       )
     }
 
@@ -273,29 +266,36 @@ export default function EventsPage() {
           (event) =>
             event.title.toLowerCase().includes(searchLower) ||
             event.description.toLowerCase().includes(searchLower) ||
-            event.category.toLowerCase().includes(searchLower),
+            event.category.toLowerCase().includes(searchLower)
         )
       }
 
-      if (filters.category) {
+      if (filters.category && filters.category !== 'ALL') {
         result = result.filter((event) => event.category === filters.category)
       }
 
-      if (filters.department) {
+      if (filters.department && filters.department !== 'ALL') {
         result = result.filter((event) => event.department === filters.department)
       }
 
-      if (filters.eventType) {
+      if (filters.eventType && filters.eventType !== 'ALL') {
         result = result.filter((event) => event.eventType === filters.eventType)
       }
 
-      if (filters.registrationStatus) {
-        if (filters.registrationStatus === "Registered") {
-          result = result.filter((event) => event.registrationStatus === "REGISTERED")
-        } else if (filters.registrationStatus === "Not Registered") {
-          result = result.filter((event) => event.registrationStatus === "NOT_REGISTERED")
-        } else if (filters.registrationStatus === "Waitlisted") {
-          result = result.filter((event) => event.registrationStatus === "WAITLISTED")
+      if (filters.registrationStatus && filters.registrationStatus !== 'ALL') {
+        switch (filters.registrationStatus) {
+          case 'Registered':
+            result = result.filter((event) => event.registrationStatus === 'REGISTERED')
+            break
+          case 'Not Registered':
+            result = result.filter((event) => event.registrationStatus === 'NOT_REGISTERED')
+            break
+          case 'Waitlisted':
+            result = result.filter((event) => event.registrationStatus === 'WAITLISTED')
+            break
+          case 'Pending':
+            result = result.filter((event) => event.registrationStatus === 'PENDING')
+            break
         }
       }
 
@@ -308,17 +308,21 @@ export default function EventsPage() {
           (event) =>
             event.department === session?.user?.department ||
             event.year === session?.user?.year ||
-            (event.relevance && event.relevance.length > 0),
+            (event.relevance && event.relevance.length > 0)
         )
       }
 
       if (filters.hideExpired) {
-        result = result.filter((event) => event.registrationStatus !== "EXPIRED")
+        const now = new Date()
+        result = result.filter((event) => {
+          const eventDate = new Date(event.date)
+          return eventDate >= now
+        })
       }
     }
 
     setFilteredEvents(result)
-  }, [activeTab, filters, events, session?.user?.department, session?.user?.year])
+  }, [activeTab, filters, events, registeredEvents, session?.user?.department, session?.user?.year])
 
   useEffect(() => {
     const loadData = async () => {
@@ -337,20 +341,20 @@ export default function EventsPage() {
     }
   }, [status])
 
-  const registeredEvents = events.filter(
-    (event) =>
-      event.registrationStatus === "REGISTERED" ||
-      event.registrationStatus === "WAITLISTED" ||
-      event.registrationStatus === "PENDING",
-  )
-
   const recommendedEvents = events.filter((event) => event.relevance?.includes("RECOMMENDED"))
 
-  const departmentEvents = events.filter(
-    (event) =>
-      event.department === session?.user?.department ||
-      event.relevance?.includes("DEPARTMENT"),
-  )
+  // Update department events when events or session changes
+  useEffect(() => {
+    if (session?.user?.department) {
+      setDepartmentEvents(
+        events.filter(
+          (event) =>
+            event.department === session.user.department ||
+            event.relevance?.includes("DEPARTMENT")
+        )
+      )
+    }
+  }, [events, session?.user?.department])
 
   if (status === 'loading') {
     return (
@@ -397,13 +401,18 @@ export default function EventsPage() {
           <TabsContent value="all" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filteredEvents.map((event) => (
-                <EnhancedEventCard
-                  key={event.id}
-                  event={event}
-                  onRegister={handleRegister}
-                  onUnregister={handleUnregister}
-                  onFavorite={handleFavorite}
-                />
+                <Card 
+                  key={event.id} 
+                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => router.push(`/student/events/${event.id}`)}
+                >
+                  <EnhancedEventCard
+                    event={event}
+                    onRegister={handleRegister}
+                    onUnregister={handleUnregister}
+                    onFavorite={handleFavorite}
+                  />
+                </Card>
               ))}
             </div>
             {filteredEvents.length === 0 && (
@@ -419,13 +428,18 @@ export default function EventsPage() {
           <TabsContent value="registered" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filteredEvents.map((event) => (
-                <EnhancedEventCard
-                  key={event.id}
-                  event={event}
-                  onRegister={handleRegister}
-                  onUnregister={handleUnregister}
-                  onFavorite={handleFavorite}
-                />
+                <Card 
+                  key={event.id} 
+                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => router.push(`/student/events/${event.id}`)}
+                >
+                  <EnhancedEventCard
+                    event={event}
+                    onRegister={handleRegister}
+                    onUnregister={handleUnregister}
+                    onFavorite={handleFavorite}
+                  />
+                </Card>
               ))}
             </div>
             {filteredEvents.length === 0 && (
@@ -441,13 +455,18 @@ export default function EventsPage() {
           <TabsContent value="recommended" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filteredEvents.map((event) => (
-                <EnhancedEventCard
-                  key={event.id}
-                  event={event}
-                  onRegister={handleRegister}
-                  onUnregister={handleUnregister}
-                  onFavorite={handleFavorite}
-                />
+                <Card 
+                  key={event.id} 
+                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => router.push(`/student/events/${event.id}`)}
+                >
+                  <EnhancedEventCard
+                    event={event}
+                    onRegister={handleRegister}
+                    onUnregister={handleUnregister}
+                    onFavorite={handleFavorite}
+                  />
+                </Card>
               ))}
             </div>
             {filteredEvents.length === 0 && (
@@ -463,13 +482,18 @@ export default function EventsPage() {
           <TabsContent value="department" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filteredEvents.map((event) => (
-                <EnhancedEventCard
-                  key={event.id}
-                  event={event}
-                  onRegister={handleRegister}
-                  onUnregister={handleUnregister}
-                  onFavorite={handleFavorite}
-                />
+                <Card 
+                  key={event.id} 
+                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => router.push(`/student/events/${event.id}`)}
+                >
+                  <EnhancedEventCard
+                    event={event}
+                    onRegister={handleRegister}
+                    onUnregister={handleUnregister}
+                    onFavorite={handleFavorite}
+                  />
+                </Card>
               ))}
             </div>
             {filteredEvents.length === 0 && (
