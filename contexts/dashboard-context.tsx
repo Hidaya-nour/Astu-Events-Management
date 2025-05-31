@@ -91,7 +91,7 @@ const ADMIN_SIDEBAR_ITEMS: SidebarItem[] = [
   {
     title: "Users",
     icon: "users",
-    href: "/admin/users",
+    href: "/admin/user-management",
   },
   {
     title: "Settings",
