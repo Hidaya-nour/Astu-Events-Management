@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import {
@@ -10,6 +10,7 @@ import {
   Users,
   Share2,
   ChevronLeft,
+  ChevronRight,
   Tag,
   Info,
   Star,
@@ -21,6 +22,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { format } from "date-fns"
+import useEmblaCarousel from 'embla-carousel-react'
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -75,6 +77,7 @@ interface Event {
   capacity: number
   registeredCount: number
   image?: string
+  images?: string[]
   tags?: string[]
   organizer: Organizer
   attendees?: Attendee[]
@@ -91,6 +94,29 @@ export default function EventDetailsPage() {
   const [error, setError] = useState<string | null>(null)
   const [registering, setRegistering] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true })
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [scrollSnaps, setScrollSnaps] = useState<number[]>([])
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return
+    setSelectedIndex(emblaApi.selectedScrollSnap())
+  }, [emblaApi])
+
+  useEffect(() => {
+    if (!emblaApi) return
+    onSelect()
+    setScrollSnaps(emblaApi.scrollSnapList())
+    emblaApi.on('select', onSelect)
+  }, [emblaApi, onSelect])
+
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev()
+  }, [emblaApi])
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext()
+  }, [emblaApi])
 
   useEffect(() => {
     const fetchEventDetails = async () => {
@@ -330,16 +356,71 @@ export default function EventDetailsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Event Image */}
+          {/* Event Image Carousel */}
           <div className="relative rounded-lg overflow-hidden h-[400px] shadow-md">
-            <Image
-              src={event.image || "/placeholder.svg?height=400&width=800"}
-                  alt={event.title}
-              fill
-              className="object-cover"
-              priority
-                />
+            <div className="overflow-hidden h-full" ref={emblaRef}>
+              <div className="flex h-full">
+                {event.images && event.images.length > 0 ? (
+                  event.images.map((image, index) => (
+                    <div key={index} className="flex-[0_0_100%] min-w-0 relative h-full">
+                      <Image
+                        src={image.trim()}
+                        alt={`${event.title} - Image ${index + 1}`}
+                        fill
+                        className="object-cover"
+                        priority={index === 0}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex-[0_0_100%] min-w-0 relative h-full">
+                    <Image
+                      src="/placeholder.svg?height=400&width=800"
+                      alt={event.title}
+                      fill
+                      className="object-cover"
+                      priority
+                    />
+                  </div>
+                )}
               </div>
+            </div>
+            
+            {/* Navigation Buttons */}
+            {event.images && event.images.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                  onClick={scrollPrev}
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                  onClick={scrollNext}
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </Button>
+                
+                {/* Dots Indicator */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+                  {scrollSnaps.map((_, index) => (
+                    <button
+                      key={index}
+                      className={`w-2 h-2 rounded-full transition-colors ${
+                        index === selectedIndex ? 'bg-white' : 'bg-white/50'
+                      }`}
+                      onClick={() => emblaApi?.scrollTo(index)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Event Details Tabs */}
               <Tabs defaultValue="details" className="w-full">

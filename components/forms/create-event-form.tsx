@@ -257,6 +257,25 @@ export function CreateEventForm() {
     setIsLoading(true)
 
     try {
+      // First, upload all images to Cloudinary
+      const uploadedImageUrls = []
+      for (const image of images) {
+        const formData = new FormData()
+        formData.append('file', image)
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload image')
+        }
+
+        const { url } = await uploadResponse.json()
+        uploadedImageUrls.push(url)
+      }
+
       // Prepare event data according to the validation schema
       const eventData = {
         title: formData.title,
@@ -278,7 +297,7 @@ export function CreateEventForm() {
         contactEmail: formData.contactEmail || undefined,
         contactPhone: formData.contactPhone || undefined,
         tags: formData.tags,
-        images: [], // Empty array for now
+        images: uploadedImageUrls, // Add the uploaded image URLs
       }
 
       console.log('Submitting event data:', eventData)
@@ -312,12 +331,12 @@ export function CreateEventForm() {
 
       // Wait for toast to be visible before redirecting
       setTimeout(() => {
-        // router.push("/dashboard/organizer/events")
+        router.push("/dashboard/organizer/events")
       }, 1000);
 
     } catch (error) {
       console.error('Error creating event:', error)
-      toast.error("Failed to create event. Please try again.", {
+      toast.error(error.message || "Failed to create event. Please try again.", {
         position: "top-right",
         autoClose: 3000,
         hideProgressBar: false,
