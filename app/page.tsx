@@ -78,9 +78,9 @@ export default function LandingPage() {
 
   // Array of event images for the carousel
   const eventImages = [
-    "/images/astu-computer-lab.png",
-    "/images/astu-group-photo.png",
-    "/images/engineering-workshop.png",
+    "/images/img-1.jpg",
+    "/images/img-2.png",
+    "/images/img-3.jpg",
   ]
 
   return (
@@ -483,7 +483,7 @@ export default function LandingPage() {
                     <Button
                       size="lg"
                       variant="outline"
-                      className="border-white text-white hover:bg-white/10 px-8 shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1"
+                      className="border-white text-green-500 hover:bg-white/10 px-8 shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1"
                     >
                       Learn More
                     </Button>
