@@ -138,17 +138,6 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
     const registeredBy = searchParams.get('registeredBy'); // <- NEW
-
-    console.log({
-      startDate,
-      endDate,
-      category,
-      eventType,
-      status,
-      search,
-      sort,
-      
-    });
     
     // Build filter conditions
     const where: any = {};
@@ -202,8 +191,11 @@ export async function GET(request: Request) {
           in: status.map(s => s.trim().toUpperCase())
         };
       }
+    } else {
+      // Default to only approved events if no status filter is provided
+      where.approvalStatus = 'APPROVED';
     }
-
+    
     if (search) {
       where.OR = [
         { 

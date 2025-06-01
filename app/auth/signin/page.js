@@ -13,7 +13,6 @@ export default function SignIn() {
       <SiteHeader />
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-md mx-auto">
-          <h1 className="text-4xl font-bold text-center mb-8">Sign In</h1>
           <SignInForm />
         </div>
       </main>

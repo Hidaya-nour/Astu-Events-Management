@@ -1,3 +1,5 @@
+'use client'
+
 import ProfileHeader from "components/profile/profile-header"
 import ProfileStats from "@/components/profile/profile-stats"
 import ProfileEvents from "@/components/profile/profile-events"

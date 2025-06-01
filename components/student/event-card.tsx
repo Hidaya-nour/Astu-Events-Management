@@ -30,13 +30,15 @@ interface EventCardProps {
     isRegistered?: boolean
     registrationStatus?: "PENDING" | "CONFIRMED" | "CANCELLED" | "WAITLISTED"
     isFavorite?: boolean
+    status?: string
   }
   variant?: "default" | "compact"
   onRegister?: (eventId: string) => Promise<void>
   onCancelRegistration?: (eventId: string) => Promise<void>
+  showStatus?: boolean
 }
 
-export function EventCard({ event, variant = "default", onRegister, onCancelRegistration }: EventCardProps) {
+export function EventCard({ event, variant = "default", onRegister, onCancelRegistration, showStatus }: EventCardProps) {
   const [isRegistering, setIsRegistering] = useState(false)
 
   const getImageUrl = (images: string): string => {
@@ -67,27 +69,18 @@ export function EventCard({ event, variant = "default", onRegister, onCancelRegi
 
   const handleAction = async () => {
     if (event.isRegistered) {
-      if (!onCancelRegistration) return;
-      try {
-        setIsRegistering(true);
-        await onCancelRegistration(event.id);
-        toast.success("Successfully cancelled registration");
-      } catch (error) {
-        toast.error("Failed to cancel registration");
-      } finally {
-        setIsRegistering(false);
-      }
-    } else {
-      if (!onRegister) return;
-      try {
-        setIsRegistering(true);
-        await onRegister(event.id);
-        toast.success("Successfully registered for event");
-      } catch (error) {
-        toast.error("Failed to register for event");
-      } finally {
-        setIsRegistering(false);
-      }
+      return; // Do nothing if already registered
+    }
+    
+    if (!onRegister) return;
+    try {
+      setIsRegistering(true);
+      await onRegister(event.id);
+      toast.success("Successfully registered for event");
+    } catch (error) {
+      toast.error("Failed to register for event");
+    } finally {
+      setIsRegistering(false);
     }
   };
 
@@ -96,7 +89,7 @@ export function EventCard({ event, variant = "default", onRegister, onCancelRegi
     if (event.isRegistered) {
       switch (event.registrationStatus) {
         case "CONFIRMED":
-          return "Cancel Registration";
+          return "Registered";
         case "PENDING":
           return "Pending";
         case "WAITLISTED":
@@ -104,7 +97,7 @@ export function EventCard({ event, variant = "default", onRegister, onCancelRegi
         case "CANCELLED":
           return "Cancelled";
         default:
-          return "Cancel Registration";
+          return "Registered";
       }
     }
     return "Register";
@@ -128,6 +121,31 @@ export function EventCard({ event, variant = "default", onRegister, onCancelRegi
     return "default";
   };
 
+  const getStatusBadge = () => {
+    if (!event.status) return null;
+    
+    let variant: "default" | "secondary" | "destructive" | "outline" = "default";
+    switch (event.status.toUpperCase()) {
+      case "APPROVED":
+        variant = "default";
+        break;
+      case "PENDING":
+        variant = "secondary";
+        break;
+      case "REJECTED":
+        variant = "destructive";
+        break;
+      default:
+        variant = "outline";
+    }
+
+    return (
+      <Badge variant={variant} className="ml-2">
+        {event.status}
+      </Badge>
+    );
+  };
+
   if (variant === "compact") {
     return (
       <Card className="hover:shadow-md transition-shadow">
@@ -140,7 +158,10 @@ export function EventCard({ event, variant = "default", onRegister, onCancelRegi
             />
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between">
-                <h3 className="font-semibold text-sm truncate">{event.title}</h3>
+                <div className="flex items-center">
+                  <h3 className="font-semibold text-sm truncate">{event.title}</h3>
+                  {showStatus && getStatusBadge()}
+                </div>
                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                   <Heart className={`h-3 w-3 ${event.isFavorite ? "fill-red-500 text-red-500" : ""}`} />
                 </Button>
@@ -181,7 +202,10 @@ export function EventCard({ event, variant = "default", onRegister, onCancelRegi
       </CardHeader>
 
       <CardContent className="p-4">
-        <h3 className="font-semibold text-lg mb-2 line-clamp-2">{event.title}</h3>
+        <div className="flex items-center mb-2">
+          <h3 className="font-semibold text-lg line-clamp-2">{event.title}</h3>
+          {showStatus && getStatusBadge()}
+        </div>
         <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{event.description}</p>
 
         <div className="space-y-2">
@@ -198,34 +222,25 @@ export function EventCard({ event, variant = "default", onRegister, onCancelRegi
           </div>
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
-                <AvatarImage src={event.organizer?.avatar || "/placeholder.svg"} />
-                <AvatarFallback>{event.organizer?.name?.charAt(0) || "?"}</AvatarFallback>
-              </Avatar>
-              <span className="text-sm text-muted-foreground">{event.organizer?.name || "Unknown Organizer"}</span>
-            </div>
-
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Users className="h-4 w-4" />
-              <span>
-                {event._count?.registrations || 0}/{event.capacity}
-              </span>
-            </div>
+            {!showStatus && onRegister && (
+              <Button
+                variant={getActionButtonVariant()}
+                onClick={handleAction}
+                disabled={isRegistering}
+                className="w-full"
+              >
+                {getActionButtonText()}
+              </Button>
+            )}
+            {showStatus && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Users className="h-4 w-4" />
+                <span>{event._count?.registrations || 0} registered</span>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
-
-      <CardFooter className="p-4 pt-0">
-        <Button 
-          className="w-full" 
-          variant={getActionButtonVariant()}
-          onClick={handleAction}
-          disabled={isRegistering}
-        >
-          {getActionButtonText()}
-        </Button>
-      </CardFooter>
     </Card>
   )
 }

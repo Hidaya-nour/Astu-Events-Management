@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DashboardLayout } from "@/components/layout/dashboard-layout"
 
 interface Event {
   id: string
@@ -105,20 +106,27 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
 
   if (!event) {
     return (
-      <div className="container py-10">
-        <div className="flex flex-col items-center justify-center space-y-4">
+      <DashboardLayout
+      appName="ASTU Events"
+      appLogo="/placeholder.svg?height=32&width=32"
+      helpText="Need Assistance?"
+      helpLink="/dashboard/organizer/support"
+    >        <div className="flex flex-col items-center justify-center space-y-4">
           <h2 className="text-2xl font-bold">Event not found</h2>
-          <Button onClick={() => router.push('/events')}>Back to Events</Button>
+          <Button onClick={() => router.back()}>Back to Events</Button>
         </div>
-      </div>
-    )
+    </DashboardLayout>    )
   }
 
   return (
-    <div className="container py-10">
-      <div className="mb-6 flex items-center">
+    <DashboardLayout
+    appName="ASTU Events"
+    appLogo="/placeholder.svg?height=32&width=32"
+    helpText="Need Assistance?"
+    helpLink="/dashboard/organizer/support"
+  >      <div className="mb-6 flex items-center">
         <Link href="/events" className="mr-4 text-primary-600 hover:text-primary-800">
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-5 w-5"  onClick={() => router.back()} />
           <span className="sr-only">Back to events</span>
         </Link>
         <div>
@@ -237,7 +245,6 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
           <Card>
             <CardHeader>
               <CardTitle>Registration</CardTitle>
-              <CardDescription>Secure your spot for this event.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg bg-gray-50 p-4">
@@ -312,6 +319,5 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
           </Card>
         </div>
       </div>
-    </div>
-  )
+</DashboardLayout>  )
 }

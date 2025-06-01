@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import {
@@ -10,6 +10,7 @@ import {
   Users,
   Share2,
   ChevronLeft,
+  ChevronRight,
   Tag,
   Info,
   Star,
@@ -20,8 +21,8 @@ import {
   CheckCircle,
   Loader2,
 } from "lucide-react"
+import useEmblaCarousel from 'embla-carousel-react'
 import { format, formatDistanceToNow } from "date-fns"
-
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -59,8 +60,11 @@ interface Organizer {
 interface Attendee {
   id: string
   name: string
+  email: string
   department?: string
+  year?: number
   image?: string
+  registrationStatus: "PENDING" | "CONFIRMED" | "CANCELLED" | "WAITLISTED"
 }
 
 interface Event {
@@ -77,6 +81,7 @@ interface Event {
   capacity: number
   registeredCount: number
   image?: string
+  images?: string[]
   tags?: string[]
   organizer: Organizer
   attendees?: Attendee[]
@@ -93,6 +98,29 @@ export default function EventDetailsPage() {
   const [error, setError] = useState<string | null>(null)
   const [registering, setRegistering] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
+//   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true })
+//   const [selectedIndex, setSelectedIndex] = useState(0)
+//   const [scrollSnaps, setScrollSnaps] = useState<number[]>([])
+
+//   const onSelect = useCallback(() => {
+//     if (!emblaApi) return
+//     setSelectedIndex(emblaApi.selectedScrollSnap())
+//   }, [emblaApi])
+
+//   useEffect(() => {
+//     if (!emblaApi) return
+//     onSelect()
+//     setScrollSnaps(emblaApi.scrollSnapList())
+//     emblaApi.on('select', onSelect)
+//   }, [emblaApi, onSelect])
+
+//   const scrollPrev = useCallback(() => {
+//     if (emblaApi) emblaApi.scrollPrev()
+//   }, [emblaApi])
+
+//   const scrollNext = useCallback(() => {
+//     if (emblaApi) emblaApi.scrollNext()
+//   }, [emblaApi])
   const [feedbackStats, setFeedbackStats] = useState<{
     totalRatings: number
     averageRating: number
@@ -106,7 +134,7 @@ export default function EventDetailsPage() {
     email?: string
     wasHelpful: boolean
     createdAt: Date
-  }>>([])
+  ([])
 
   const fetchFeedback = async () => {
     try {
@@ -151,13 +179,20 @@ export default function EventDetailsPage() {
   const handleRegister = async () => {
     try {
       setRegistering(true)
-      // In a real application, you would call your API
-      const response = await fetch('/api/events/register', {
+      const response = await fetch(`/api/registration/${event?.id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId: event?.id }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
       })
-      if (!response.ok) throw new Error("Registration failed")
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Registration failed")
+      }
+
+      const data = await response.json()
 
       // Update local state
       if (event) {
@@ -169,9 +204,9 @@ export default function EventDetailsPage() {
         })
       }
 
-      toast.success("Registration Successfuly")
+      toast.success("Successfully registered for event")
     } catch (err) {
-      toast.error("Registration Failed")
+      toast.error(err instanceof Error ? err.message : "Failed to register for event")
     } finally {
       setRegistering(false)
     }
@@ -180,13 +215,17 @@ export default function EventDetailsPage() {
   const handleCancelRegistration = async () => {
     try {
       setRegistering(true)
-      const response = await fetch(`/api/events/register/${event?.id}`, {
+      const response = await fetch(`/api/registration/${event?.id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
       })
-      if (!response.ok) throw new Error("Cancellation failed")
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Cancellation failed")
+      }
 
       // Update local state
       if (event) {
@@ -198,9 +237,9 @@ export default function EventDetailsPage() {
         })
       }
 
-      toast.success("Registration Cancelled")
+      toast.success("Successfully cancelled registration")
     } catch (err) {
-      toast.error("Cancellation Failed")
+      toast.error(err instanceof Error ? err.message : "Failed to cancel registration")
     } finally {
       setRegistering(false)
     }
@@ -383,16 +422,71 @@ export default function EventDetailsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Event Image */}
+          {/* Event Image Carousel */}
           <div className="relative rounded-lg overflow-hidden h-[400px] shadow-md">
-            <Image
-              src={event.image || "/placeholder.svg?height=400&width=800"}
-                  alt={event.title}
-              fill
-              className="object-cover"
-              priority
-                />
+            <div className="overflow-hidden h-full" ref={emblaRef}>
+              <div className="flex h-full">
+                {event.images && event.images.length > 0 ? (
+                  event.images.map((image, index) => (
+                    <div key={index} className="flex-[0_0_100%] min-w-0 relative h-full">
+                      <Image
+                        src={image.trim()}
+                        alt={`${event.title} - Image ${index + 1}`}
+                        fill
+                        className="object-cover"
+                        priority={index === 0}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex-[0_0_100%] min-w-0 relative h-full">
+                    <Image
+                      src="/placeholder.svg?height=400&width=800"
+                      alt={event.title}
+                      fill
+                      className="object-cover"
+                      priority
+                    />
+                  </div>
+                )}
               </div>
+            </div>
+            
+            {/* Navigation Buttons */}
+            {event.images && event.images.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                  onClick={scrollPrev}
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                  onClick={scrollNext}
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </Button>
+                
+                {/* Dots Indicator */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+                  {scrollSnaps.map((_, index) => (
+                    <button
+                      key={index}
+                      className={`w-2 h-2 rounded-full transition-colors ${
+                        index === selectedIndex ? 'bg-white' : 'bg-white/50'
+                      }`}
+                      onClick={() => emblaApi?.scrollTo(index)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Event Details Tabs */}
               <Tabs defaultValue="details" className="w-full">
@@ -490,26 +584,74 @@ export default function EventDetailsPage() {
 
             <TabsContent value="attendees" className="pt-4">
               {event.attendees && event.attendees.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {event.attendees.map((attendee) => (
-                    <div key={attendee.id} className="flex items-center space-x-3 p-3 rounded-md border">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={attendee.image || "/placeholder.svg?height=40&width=40"} />
-                        <AvatarFallback>{attendee.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
                     <div>
-                        <p className="font-medium">{attendee.name}</p>
-                        {attendee.department && <p className="text-xs text-muted-foreground">{attendee.department}</p>}
-                      </div>
+                      <h3 className="text-lg font-semibold">Attendees</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {event.attendees.length} people registered
+                      </p>
                     </div>
-                  ))}
+                    <div className="flex gap-2">
+                      <Badge variant="outline" className="bg-green-50 text-green-700">
+                        {event.attendees.filter(a => a.registrationStatus === "CONFIRMED").length} Confirmed
+                      </Badge>
+                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
+                        {event.attendees.filter(a => a.registrationStatus === "PENDING").length} Pending
+                      </Badge>
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                        {event.attendees.filter(a => a.registrationStatus === "WAITLISTED").length} Waitlisted
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {event.attendees.map((attendee) => (
+                      <div key={attendee.id} className="flex items-center space-x-3 p-3 rounded-md border">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={attendee.image || "/placeholder.svg?height=40&width=40"} />
+                          <AvatarFallback>{attendee.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{attendee.name}</p>
+                          <div className="flex items-center gap-2">
+                            {attendee.department && (
+                              <p className="text-xs text-muted-foreground truncate">{attendee.department}</p>
+                            )}
+                            {attendee.year && (
+                              <p className="text-xs text-muted-foreground">Year {attendee.year}</p>
+                            )}
+                          </div>
+                          <Badge 
+                            variant="outline" 
+                            className={`mt-1 ${
+                              attendee.registrationStatus === "CONFIRMED" 
+                                ? "bg-green-50 text-green-700" 
+                                : attendee.registrationStatus === "PENDING"
+                                ? "bg-yellow-50 text-yellow-700"
+                                : attendee.registrationStatus === "WAITLISTED"
+                                ? "bg-blue-50 text-blue-700"
+                                : "bg-red-50 text-red-700"
+                            }`}
+                          >
+                            {attendee.registrationStatus}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  <p>No attendees yet. Be the first to register!</p>
-                  </div>
-                )}
+                  <p className="text-muted-foreground">No attendees yet. Be the first to register!</p>
+                  {!event.isRegistered && !hasEventPassed && !isEventFull && (
+                    <Button className="mt-4" onClick={handleRegister}>
+                      Register Now
+                    </Button>
+                  )}
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="similar" className="pt-4">

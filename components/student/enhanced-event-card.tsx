@@ -4,9 +4,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, Clock, MapPin, Users, Heart } from "lucide-react"
+import { Calendar, Clock, MapPin, Users, Heart, Loader2 } from "lucide-react"
 import { EventStatusBadge } from "@/components/student/event-status-badge"
 import { RelevanceBadge } from "@/components/student/relevance-badge"
+import { useState } from "react"
 
 interface EnhancedEventCardProps {
   event: {
@@ -37,6 +38,7 @@ interface EnhancedEventCardProps {
 }
 
 export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite }: EnhancedEventCardProps) {
+  const [isLoading, setIsLoading] = useState(false)
   const isRegistered =
     event.registrationStatus === "REGISTERED" ||
     event.registrationStatus === "WAITLISTED" ||
@@ -44,7 +46,7 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
   const isPastDeadline = event.registrationStatus === "EXPIRED"
   const isRelevant = event.relevance && event.relevance.length > 0
 
-  const getEventTypeIcon = (type: string) => {
+  const getEventTypeIcon = (type: string | undefined) => {
     switch (type) {
       case "ONLINE":
         return "🌐"
@@ -55,15 +57,21 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
     }
   }
 
-  const handleActionClick = () => {
-    if (isRegistered) {
-      onUnregister?.(event.id)
-    } else if (!isPastDeadline) {
-      onRegister?.(event.id)
+  const handleActionClick = async () => {
+    try {
+      setIsLoading(true)
+      if (isRegistered) {
+        await onUnregister?.(event.id)
+      } else if (!isPastDeadline) {
+        await onRegister?.(event.id)
+      }
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const getActionButtonText = () => {
+    if (isLoading) return "Processing..."
     if (event.registrationStatus === "REGISTERED") return "Registered"
     if (event.registrationStatus === "WAITLISTED") return "Waitlisted"
     if (event.registrationStatus === "PENDING") return "Pending"
@@ -106,7 +114,7 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
           </div>
           <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
             <Badge variant="outline" className="bg-white/90">
-              {getEventTypeIcon(event.eventType)} {event.eventType.replace("_", " ")}
+              {getEventTypeIcon(event.eventType)} {event.eventType?.replace("_", " ") || "In Person"}
             </Badge>
             <EventStatusBadge status={event.registrationStatus} className="bg-white/90" />
           </div>
@@ -149,10 +157,6 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
             </div>
           </div>
 
-          {event.registrationDeadline && (
-            <div className="text-xs text-muted-foreground">Registration deadline: {event.registrationDeadline}</div>
-          )}
-
           {event.relevance && event.relevance.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {event.relevance.map((type) => (
@@ -164,14 +168,17 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
       </CardContent>
 
       <CardFooter className="p-4 pt-0">
-        <Button
-          className="w-full"
-          variant={getActionButtonVariant()}
-          onClick={handleActionClick}
-          disabled={isPastDeadline}
-        >
-          {getActionButtonText()}
-        </Button>
+        <div className="w-full flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Status:</span>
+            <EventStatusBadge status={event.registrationStatus} />
+          </div>
+          {event.registrationDeadline && (
+            <span className="text-xs text-muted-foreground">
+              Deadline: {event.registrationDeadline}
+            </span>
+          )}
+        </div>
       </CardFooter>
     </Card>
   )

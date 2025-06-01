@@ -58,16 +58,16 @@ export function AdminPendingApprovals() {
 
 const handleApprove = async (eventId: string) => {
   try {
-    const response = await fetch(`/api/events/${eventId}`, {
-      method: 'PUT',
+    const response = await fetch(`/api/events/${eventId}/approve`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ approvalStatus: 'APPROVED' }),
     })
 
     if (!response.ok) {
-      throw new Error('Failed to approve event')
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to approve event')
     }
 
     toast.success('Event approved successfully')
@@ -76,14 +76,14 @@ const handleApprove = async (eventId: string) => {
     setPendingEvents((prev) => prev.filter((event) => event.id !== eventId))
   } catch (err) {
     console.error('Error approving event:', err)
-    toast.error('Failed to approve event')
+    toast.error(err instanceof Error ? err.message : 'Failed to approve event')
   }
 }
 
 const handleReject = async (eventId: string) => {
   try {
-    const response = await fetch(`/api/events/${eventId}`, {
-      method: 'PUT',
+    const response = await fetch(`/api/events/${eventId}/reject`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },

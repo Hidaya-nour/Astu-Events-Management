@@ -1,7 +1,9 @@
+"use client"
+
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight, Award, BookOpen, GraduationCap, Users } from "lucide-react"
-import { motion } from "framer-motion"
+import { motion as Motion } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +18,7 @@ export default function AboutPage() {
 
       <div className="container py-12 md:py-16">
         {/* Hero Section */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -29,10 +31,10 @@ export default function AboutPage() {
           <p className="mx-auto max-w-2xl text-muted-foreground md:text-lg">
             Empowering students through education, innovation, and community engagement.
           </p>
-        </motion.div>
+        </Motion.div>
 
         {/* Mission & Vision */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
@@ -61,10 +63,10 @@ export default function AboutPage() {
               </p>
             </CardContent>
           </Card>
-        </motion.div>
+        </Motion.div>
 
         {/* History Section */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
@@ -89,10 +91,10 @@ export default function AboutPage() {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </Motion.div>
 
         {/* Campus Life */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
@@ -134,10 +136,10 @@ export default function AboutPage() {
               </CardContent>
             </Card>
           </div>
-        </motion.div>
+        </Motion.div>
 
         {/* Leadership */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.5 }}
@@ -181,10 +183,10 @@ export default function AboutPage() {
               </CardContent>
             </Card>
           </div>
-        </motion.div>
+        </Motion.div>
 
         {/* Call to Action */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.6 }}
@@ -208,7 +210,7 @@ export default function AboutPage() {
             </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </Motion.div>
           </div>
           <SiteFooter />
     </div>

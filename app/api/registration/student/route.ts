@@ -23,6 +23,20 @@ export async function GET() {
         event: {
           include: {
             createdBy: true,
+            registrations: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    image: true,
+                    department: true,
+                    year: true
+                  }
+                }
+              }
+            },
             _count: {
               select: {
                 registrations: true
@@ -52,6 +66,15 @@ export async function GET() {
       },
       tags: registration.event.tags ? registration.event.tags.split(',') : [],
       rating: null, // This will be fetched separately if needed
+      attendees: registration.event.registrations.map(reg => ({
+        id: reg.user.id,
+        name: reg.user.name,
+        email: reg.user.email,
+        image: reg.user.image,
+        department: reg.user.department,
+        year: reg.user.year,
+        registrationStatus: reg.status
+      }))
     }))
 
     return NextResponse.json(formattedEvents)

@@ -1,3 +1,33 @@
+# Don't ignore all Python files!
+# *.py ← remove or comment this if it's there
+
+# Ignore Python cache and virtual envs instead:
+__pycache__/
+*.pyc
+.env/
+.recommender_venv/
+recommender/venv/
+
+# Ignore nested git repository
+Astu-Events-Management/
+
+# Node modules
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build output
+.next/
+out/
+build/
+dist/
+
+# Debug logs
 # dependencies
 /node_modules
 /.pnp
@@ -22,6 +52,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo 
 # local env files
 .env*.local
 .env
@@ -53,4 +88,29 @@ logs
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+Thumbs.db
+
+# Python virtual environment
+ai-recommender/venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+.next/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
 Thumbs.db
