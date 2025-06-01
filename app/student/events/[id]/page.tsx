@@ -21,9 +21,8 @@ import {
   CheckCircle,
   Loader2,
 } from "lucide-react"
-import { format } from "date-fns"
 import useEmblaCarousel from 'embla-carousel-react'
-
+import { format, formatDistanceToNow } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -48,6 +47,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { toast } from "react-toastify"
+import { FeedbackButton } from "@/components/feedback/feedback-button"
+
 
 interface Organizer {
   id: string
@@ -97,38 +98,74 @@ export default function EventDetailsPage() {
   const [error, setError] = useState<string | null>(null)
   const [registering, setRegistering] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true })
-  const [selectedIndex, setSelectedIndex] = useState(0)
-  const [scrollSnaps, setScrollSnaps] = useState<number[]>([])
+//   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true })
+//   const [selectedIndex, setSelectedIndex] = useState(0)
+//   const [scrollSnaps, setScrollSnaps] = useState<number[]>([])
 
-  const onSelect = useCallback(() => {
-    if (!emblaApi) return
-    setSelectedIndex(emblaApi.selectedScrollSnap())
-  }, [emblaApi])
+//   const onSelect = useCallback(() => {
+//     if (!emblaApi) return
+//     setSelectedIndex(emblaApi.selectedScrollSnap())
+//   }, [emblaApi])
 
-  useEffect(() => {
-    if (!emblaApi) return
-    onSelect()
-    setScrollSnaps(emblaApi.scrollSnapList())
-    emblaApi.on('select', onSelect)
-  }, [emblaApi, onSelect])
+//   useEffect(() => {
+//     if (!emblaApi) return
+//     onSelect()
+//     setScrollSnaps(emblaApi.scrollSnapList())
+//     emblaApi.on('select', onSelect)
+//   }, [emblaApi, onSelect])
 
-  const scrollPrev = useCallback(() => {
-    if (emblaApi) emblaApi.scrollPrev()
-  }, [emblaApi])
+//   const scrollPrev = useCallback(() => {
+//     if (emblaApi) emblaApi.scrollPrev()
+//   }, [emblaApi])
 
-  const scrollNext = useCallback(() => {
-    if (emblaApi) emblaApi.scrollNext()
-  }, [emblaApi])
+//   const scrollNext = useCallback(() => {
+//     if (emblaApi) emblaApi.scrollNext()
+//   }, [emblaApi])
+  const [feedbackStats, setFeedbackStats] = useState<{
+    totalRatings: number
+    averageRating: number
+    helpfulCount: number
+    helpfulPercentage: number
+  } | null>(null)
+  const [feedback, setFeedback] = useState<Array<{
+    id: string
+    rating: number
+    feedback: string
+    email?: string
+    wasHelpful: boolean
+    createdAt: Date
+  ([])
+
+  const fetchFeedback = async () => {
+    try {
+      const feedbackResponse = await fetch(`/api/feedback?eventId=${params.id}`)
+      if (!feedbackResponse.ok) throw new Error("Failed to fetch feedback")
+      const feedbackData = await feedbackResponse.json()
+      setFeedbackStats(feedbackData.stats)
+      setFeedback(feedbackData.feedback)
+    } catch (err) {
+      console.error("Error fetching feedback:", err)
+    }
+  }
 
   useEffect(() => {
     const fetchEventDetails = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`/api/events/${params.id}`)
-        if (!response.ok) throw new Error("Failed to fetch event details")
-        const data = await response.json()
-        setEvent(data)
+        const [eventResponse, feedbackResponse] = await Promise.all([
+          fetch(`/api/events/${params.id}`),
+          fetch(`/api/feedback?eventId=${params.id}`)
+        ])
+
+        if (!eventResponse.ok) throw new Error("Failed to fetch event details")
+        if (!feedbackResponse.ok) throw new Error("Failed to fetch feedback")
+
+        const eventData = await eventResponse.json()
+        const feedbackData = await feedbackResponse.json()
+
+        setEvent(eventData)
+        setFeedbackStats(feedbackData.stats)
+        setFeedback(feedbackData.feedback)
       } catch (err) {
         setError("Failed to load event details. Please try again later.")
       } finally {
@@ -227,23 +264,38 @@ export default function EventDetailsPage() {
     toast.success("Calendar Event Created")
   }
 
-  const handleShare = () => {
+  const handleShare = async () => {
     if (navigator.share && event) {
-      navigator
-        .share({
+      try {
+        await navigator.share({
           title: event.title,
           text: event.description,
           url: window.location.href,
         })
-        .catch(() => {
-          // Fallback if sharing fails or is cancelled
-          navigator.clipboard.writeText(window.location.href)
-          toast.success("Link Copied")
-        })
+      } catch (err) {
+        // Fallback to copying to clipboard
+        fallbackShare()
+      }
     } else {
-      // Fallback for browsers that don't support sharing
-      navigator.clipboard.writeText(window.location.href)
-      toast.success("Link Copied",)
+      // Use fallback for browsers that don't support sharing
+      fallbackShare()
+    }
+  }
+
+  const fallbackShare = () => {
+    // Create a temporary input element
+    const input = document.createElement('input')
+    input.value = window.location.href
+    document.body.appendChild(input)
+    input.select()
+    
+    try {
+      document.execCommand('copy')
+      toast.success("Link Copied")
+    } catch (err) {
+      toast.error("Failed to copy link")
+    } finally {
+      document.body.removeChild(input)
     }
   }
 
@@ -776,24 +828,14 @@ export default function EventDetailsPage() {
                   </TooltipProvider>
                 )}
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="flex-1">
-                      More Options
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => router.push("/student/events")}>
-                      Browse All Events
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push(`/student/events?category=${event.category}`)}>
-                      More {event.category} Events
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push(`/student/events?organizer=${event.organizer.id}`)}>
-                      Events by this Organizer
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex-1">
+                  <FeedbackButton 
+                    eventId={event.id} 
+                    eventName={event.title} 
+                    eventEndTime={new Date(`${event.date}T${event.endTime || event.startTime}`)}
+                    onFeedbackSubmitted={fetchFeedback}
+                  />
+                </div>
               </div>
             </CardFooter>
           </Card>
@@ -805,70 +847,76 @@ export default function EventDetailsPage() {
               <CardDescription>What students are saying about this event</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center mb-4">
-                <div className="flex mr-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`h-5 w-5 ${star <= 4 ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}`}
-                    />
-                  ))}
-                </div>
-                <span className="font-medium">4.0</span>
-                <span className="text-muted-foreground text-sm ml-1">(12 ratings)</span>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>JD</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="flex items-center">
-                      <span className="font-medium text-sm">John Doe</span>
-                      <span className="text-muted-foreground text-xs ml-2">2 days ago</span>
-                    </div>
-                    <div className="flex my-1">
+              {feedbackStats ? (
+                <>
+                  <div className="flex items-center mb-4">
+                    <div className="flex mr-2">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star
                           key={star}
-                          className={`h-3 w-3 ${star <= 5 ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}`}
+                          className={`h-5 w-5 ${
+                            star <= Math.round(feedbackStats.averageRating)
+                              ? "text-yellow-400 fill-yellow-400"
+                              : "text-gray-300"
+                          }`}
                         />
                       ))}
                     </div>
-                    <p className="text-sm">Great event! Learned a lot and met interesting people.</p>
+                    <span className="font-medium">{feedbackStats.averageRating.toFixed(1)}</span>
+                    <span className="text-muted-foreground text-sm ml-1">
+                      ({feedbackStats.totalRatings} ratings)
+                    </span>
                   </div>
-                </div>
 
-                <div className="flex items-start space-x-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>AS</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="flex items-center">
-                      <span className="font-medium text-sm">Alice Smith</span>
-                      <span className="text-muted-foreground text-xs ml-2">1 week ago</span>
-                    </div>
-                    <div className="flex my-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          className={`h-3 w-3 ${star <= 4 ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}`}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-sm">Well organized and informative. Would attend again!</p>
+                  <div className="space-y-4">
+                    {feedback.map((item) => (
+                      <div key={item.id} className="flex items-start space-x-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback>
+                            {item.email ? item.email.charAt(0).toUpperCase() : "A"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="flex items-center">
+                            <span className="font-medium text-sm">
+                              {item.email ? item.email.split("@")[0] : "Anonymous"}
+                            </span>
+                            <span className="text-muted-foreground text-xs ml-2">
+                              {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                            </span>
+                          </div>
+                          <div className="flex my-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`h-3 w-3 ${
+                                  star <= item.rating
+                                    ? "text-yellow-400 fill-yellow-400"
+                                    : "text-gray-300"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-sm">{item.feedback}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                  <p>No feedback yet. Be the first to share your thoughts!</p>
                 </div>
-              </div>
+              )}
             </CardContent>
             <CardFooter>
               <Button variant="outline" size="sm" className="w-full">
                 <MessageSquare className="h-4 w-4 mr-2" />
                 View All Reviews
-                  </Button>
+              </Button>
             </CardFooter>
-            </Card>
+          </Card>
         </div>
       </div>
 </DashboardLayout>  )

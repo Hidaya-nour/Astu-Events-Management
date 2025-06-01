@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from "@/lib/auth";
 import { z } from 'zod';
+import { notificationService } from "@/lib/services/notification-service";
+import { NotificationType } from "@prisma/client";
 
 // Validation schema
 const eventSchema = z.object({
@@ -26,153 +28,94 @@ const eventSchema = z.object({
   contactPhone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format').optional(),
   tags: z.array(z.string()).max(10, 'Maximum 10 tags allowed').default([]),
   images: z.array(z.string().url('Invalid image URL')).max(5, 'Maximum 5 images allowed').default([]),
+  featured: z.boolean().default(false),
 });
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    // Check authentication
     const session = await getServerSession(authOptions);
-    
-    // Get a valid user ID for testing
-    const firstUser = await prisma.user.findFirst();
-    if (!firstUser) {
-      return NextResponse.json(
-        { error: 'No users found in the database. Please create a user first.' },
-        { status: 400 }
-      );
-    }
-    const userId = session?.user?.id || firstUser.id;
-
-    // Parse and validate request body
-    const body = await request.json();
-    const validationResult = eventSchema.safeParse(body);
-
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          error: 'Validation failed',
-          details: validationResult.error.errors 
-        },
-        { status: 400 }
-      );
+    if (!session?.user?.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const data = validationResult.data;
-
-    // Additional business logic validation
-    const eventDate = new Date(data.date);
-    const now = new Date();
-
-    if (eventDate < now) {
-      return NextResponse.json(
-        { error: 'Event date cannot be in the past' },
-        { status: 400 }
-      );
-    }
-
-    if (data.registrationDeadline) {
-      const registrationDeadline = new Date(data.registrationDeadline);
-      if (registrationDeadline > eventDate) {
-        return NextResponse.json(
-          { error: 'Registration deadline cannot be after event date' },
-          { status: 400 }
-        );
-      }
-    }
-
-    if (data.endTime && data.startTime) {
-      const [startHours, startMinutes] = data.startTime.split(':').map(Number);
-      const [endHours, endMinutes] = data.endTime.split(':').map(Number);
-      const startTime = startHours * 60 + startMinutes;
-      const endTime = endHours * 60 + endMinutes;
-
-      if (endTime <= startTime) {
-        return NextResponse.json(
-          { error: 'End time must be after start time' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Create event in database
-    const role = session?.user?.role
-    const approvalStatus = role === 'STUDENT' ? 'PENDING' : 'APPROVED';
+    const body = await req.json();
+    const {
+      title,
+      description,
+      date,
+      startTime,
+      endTime,
+      location,
+      venue,
+      category,
+      department,
+      tags,
+      images,
+      contactEmail,
+      contactPhone,
+      eventType,
+      isPublic,
+      requiresApproval,
+      allowFeedback,
+      organizerInfo,
+      featured,
+      capacity,
+      registrationDeadline,
+    } = body;
 
     const event = await prisma.event.create({
       data: {
-        title: data.title,
-        description: data.description,
-        date: eventDate,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        location: data.location,
-        venue: data.venue,
-        category: data.category,
-        approvalStatus,
-        capacity: data.capacity,
-        registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline) : null,
-        isPublic: data.isPublic,
-        requiresApproval: data.requiresApproval,
-        allowFeedback: data.allowFeedback,
-        organizerInfo: data.organizerInfo,
-        eventType: data.eventType,
-        department: data.department,
-        contactEmail: data.contactEmail,
-        contactPhone: data.contactPhone,
-        tags: data.tags.join(',') as any,
-        images: data.images.join(',') as any,
-        createdById: userId,
+        title,
+        description,
+        date: new Date(date),
+        startTime,
+        endTime,
+        location,
+        venue,
+        category,
+        department,
+        tags,
+        images,
+        contactEmail,
+        contactPhone,
+        eventType,
+        isPublic,
+        requiresApproval,
+        allowFeedback,
+        organizerInfo,
+        featured,
+        capacity,
+        registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : null,
+        createdById: session.user.id,
+      },
+    });
+
+    // Get all students to notify them about the new event
+    const students = await prisma.user.findMany({
+      where: {
+        role: "STUDENT",
       },
       select: {
         id: true,
-        title: true,
-        description: true,
-        date: true,
-        startTime: true,
-        endTime: true,
-        location: true,
-        venue: true,
-        category: true,
-        capacity: true,
-        registrationDeadline: true,
-        isPublic: true,
-        requiresApproval: true,
-        allowFeedback: true,
-        organizerInfo: true,
-        eventType: true,
-        department: true,
-        contactEmail: true,
-        contactPhone: true,
-        tags: true,
-        images: true,
-        createdAt: true,
-        updatedAt: true,
-      }
+      },
     });
 
-    return NextResponse.json(
-      { 
-        message: 'Event created successfully',
-        event 
-      },
-      { status: 201 }
+    // Create notifications for all students
+    await Promise.all(
+      students.map((student) =>
+        notificationService.create({
+          userId: student.id,
+          title: "New Event Created",
+          message: `A new event "${title}" has been created. Check it out!`,
+          type: NotificationType.EVENT_CREATED,
+        })
+      )
     );
 
+    return NextResponse.json(event);
   } catch (error) {
-    console.error('Error creating event:', error);
-    
-    // Handle specific Prisma errors
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'A unique constraint would be violated' },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error("[EVENTS_POST]", error);
+    return new NextResponse("Internal error", { status: 500 });
   }
 }
 

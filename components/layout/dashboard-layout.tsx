@@ -2,12 +2,13 @@
 
 import type React from "react"
 import { type ReactNode, useState, useEffect } from "react"
-import { Bell, Moon, Search, Sun, Home, CalendarCheck, Users, FileEdit, Download } from "lucide-react"
+import { Bell, Moon, Search, Sun, Home, CalendarCheck, Users, FileEdit, Download, Check, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import { formatDistanceToNow } from "date-fns"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,15 @@ interface DashboardLayoutProps {
   helpLink?: string
 }
 
+interface Notification {
+  id: string
+  title: string
+  message: string
+  type: string
+  read: boolean
+  createdAt: string
+}
+
 const iconMap: Record<string, React.ComponentType<any>> = {
   "home": Home,
   "calendar-check": CalendarCheck,
@@ -50,12 +60,64 @@ export function DashboardLayout({
   const [darkMode, setDarkMode] = useState(false)
   const { userInfo, sidebarItems, setActiveItem } = useDashboard()
   const pathname = usePathname()
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     if (pathname) {
       setActiveItem(pathname)
     }
+    fetchNotifications()
   }, [pathname])
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch("/api/notifications")
+      if (response.ok) {
+        const data = await response.json()
+        setNotifications(data)
+        setUnreadCount(data.filter((n: Notification) => !n.read).length)
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error)
+    }
+  }
+
+  const markAsRead = async (id: string) => {
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
+      })
+
+      if (response.ok) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+        )
+        setUnreadCount((prev) => Math.max(0, prev - 1))
+      }
+    } catch (error) {
+      console.error("Error marking notification as read:", error)
+    }
+  }
+
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "PUT",
+      })
+
+      if (response.ok) {
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+        setUnreadCount(0)
+      }
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error)
+    }
+  }
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode)
@@ -104,9 +166,11 @@ export function DashboardLayout({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
-                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                  3
-                </span>
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                    {unreadCount}
+                  </span>
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[350px]">
@@ -114,25 +178,60 @@ export function DashboardLayout({
               <DropdownMenuSeparator />
               <ScrollArea className="h-[300px]">
                 <div className="space-y-2 p-2">
-                  {/* Notification items would go here */}
-                  <div className="flex items-start gap-4 rounded-lg p-2 hover:bg-muted">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      <Bell className="h-4 w-4" />
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">New notification</p>
-                      <p className="text-xs text-muted-foreground">This is a sample notification message</p>
-                      <p className="text-xs text-muted-foreground mt-1">24 minutes ago</p>
+                  {notifications.length === 0 ? (
+                    <div className="text-center text-sm text-muted-foreground py-4">
+                      No notifications
                     </div>
-                  </div>
+                  ) : (
+                    notifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className={`flex items-start gap-4 rounded-lg p-2 ${
+                          !notification.read ? "bg-muted" : ""
+                        }`}
+                      >
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <Bell className="h-4 w-4" />
+                        </span>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">
+                            {notification.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {notification.message}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(notification.createdAt), {
+                              addSuffix: true,
+                            })}
+                          </p>
+                        </div>
+                        {!notification.read && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => markAsRead(notification.id)}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               </ScrollArea>
-              <DropdownMenuSeparator />
-              <div className="p-2">
-                <Button variant="outline" size="sm" className="w-full">
-                  View all notifications
-                </Button>
-              </div>
+              {notifications.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="justify-center text-sm"
+                    onClick={markAllAsRead}
+                  >
+                    Mark all as read
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 

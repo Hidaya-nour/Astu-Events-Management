@@ -182,7 +182,8 @@ export default function StudentDashboard() {
       }
 
       // Add sorting
-      // queryParams.set('sort', 'upcoming')
+
+      //queryParams.set('sort', 'upcoming')
 
       console.log('Fetching events with params:', queryParams.toString())
       const response = await fetch(`/api/events?${queryParams.toString()}`)
