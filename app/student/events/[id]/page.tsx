@@ -108,6 +108,18 @@ export default function EventDetailsPage() {
     createdAt: Date
   }>>([])
 
+  const fetchFeedback = async () => {
+    try {
+      const feedbackResponse = await fetch(`/api/feedback?eventId=${params.id}`)
+      if (!feedbackResponse.ok) throw new Error("Failed to fetch feedback")
+      const feedbackData = await feedbackResponse.json()
+      setFeedbackStats(feedbackData.stats)
+      setFeedback(feedbackData.feedback)
+    } catch (err) {
+      console.error("Error fetching feedback:", err)
+    }
+  }
+
   useEffect(() => {
     const fetchEventDetails = async () => {
       try {
@@ -678,7 +690,8 @@ export default function EventDetailsPage() {
                   <FeedbackButton 
                     eventId={event.id} 
                     eventName={event.title} 
-                    eventEndTime={new Date(`${event.date}T${event.endTime || event.startTime}`)} 
+                    eventEndTime={new Date(`${event.date}T${event.endTime || event.startTime}`)}
+                    onFeedbackSubmitted={fetchFeedback}
                   />
                 </div>
               </div>

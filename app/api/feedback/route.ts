@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { feedbackService } from "@/lib/services/feedback-service"
+import { prisma } from "@/lib/prisma"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 
 const feedbackSchema = z.object({
   eventId: z.string(),
@@ -12,10 +14,54 @@ const feedbackSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const body = await req.json()
     const validatedData = feedbackSchema.parse(body)
 
-    const feedback = await feedbackService.create(validatedData)
+    // Check if user has already submitted feedback for this event
+    const existingFeedback = await prisma.feedback.findFirst({
+      where: {
+        eventId: validatedData.eventId,
+        userId: session.user.id,
+      },
+    })
+
+    if (existingFeedback) {
+      return NextResponse.json(
+        { error: "You have already submitted feedback for this event" },
+        { status: 400 }
+      )
+    }
+
+    const feedback = await prisma.feedback.create({
+      data: {
+        eventId: validatedData.eventId,
+        userId: session.user.id,
+        rating: validatedData.rating,
+        feedback: validatedData.feedback,
+        email: validatedData.email,
+        wasHelpful: validatedData.wasHelpful,
+      },
+      include: {
+        event: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    })
 
     return NextResponse.json(feedback, { status: 201 })
   } catch (error) {
@@ -47,11 +93,41 @@ export async function GET(req: Request) {
     }
 
     const [feedback, stats] = await Promise.all([
-      feedbackService.getByEventId(eventId),
-      feedbackService.getEventStats(eventId),
+      prisma.feedback.findMany({
+        where: { eventId },
+        orderBy: { createdAt: "desc" },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      }),
+      prisma.feedback.aggregate({
+        where: { eventId },
+        _avg: { rating: true },
+        _count: true,
+      }),
     ])
 
-    return NextResponse.json({ feedback, stats })
+    const totalRatings = stats._count
+    const averageRating = stats._avg.rating || 0
+    const helpfulCount = feedback.filter(f => f.wasHelpful).length
+
+    return NextResponse.json({
+      feedback,
+      stats: {
+        totalRatings,
+        averageRating: Number(averageRating.toFixed(1)),
+        helpfulCount,
+        helpfulPercentage: totalRatings > 0
+          ? Math.round((helpfulCount / totalRatings) * 100)
+          : 0,
+      },
+    })
   } catch (error) {
     console.error("Error fetching feedback:", error)
     return NextResponse.json(

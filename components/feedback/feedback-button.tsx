@@ -10,10 +10,16 @@ interface FeedbackButtonProps {
   eventId: string
   eventName: string
   eventEndTime: Date
+  onFeedbackSubmitted?: () => void
 }
 
-export function FeedbackButton({ eventId, eventName, eventEndTime }: FeedbackButtonProps) {
+export function FeedbackButton({ eventId, eventName, eventEndTime, onFeedbackSubmitted }: FeedbackButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
+
+  const handleFeedbackSuccess = () => {
+    setIsOpen(false)
+    onFeedbackSubmitted?.()
+  }
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -32,7 +38,7 @@ export function FeedbackButton({ eventId, eventName, eventEndTime }: FeedbackBut
           <SheetTitle>Event Feedback</SheetTitle>
           <SheetDescription>Share your thoughts about &quot;{eventName}&quot;</SheetDescription>
         </SheetHeader>
-        <FeedbackForm eventId={eventId} onSuccess={() => setIsOpen(false)} />
+        <FeedbackForm eventId={eventId} onSuccess={handleFeedbackSuccess} />
       </SheetContent>
     </Sheet>
   )
