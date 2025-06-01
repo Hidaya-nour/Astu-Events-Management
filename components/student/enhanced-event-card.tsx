@@ -4,9 +4,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, Clock, MapPin, Users, Heart } from "lucide-react"
+import { Calendar, Clock, MapPin, Users, Heart, Loader2 } from "lucide-react"
 import { EventStatusBadge } from "@/components/student/event-status-badge"
 import { RelevanceBadge } from "@/components/student/relevance-badge"
+import { useState } from "react"
 
 interface EnhancedEventCardProps {
   event: {
@@ -37,6 +38,7 @@ interface EnhancedEventCardProps {
 }
 
 export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite }: EnhancedEventCardProps) {
+  const [isLoading, setIsLoading] = useState(false)
   const isRegistered =
     event.registrationStatus === "REGISTERED" ||
     event.registrationStatus === "WAITLISTED" ||
@@ -55,15 +57,21 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
     }
   }
 
-  const handleActionClick = () => {
-    if (isRegistered) {
-      onUnregister?.(event.id)
-    } else if (!isPastDeadline) {
-      onRegister?.(event.id)
+  const handleActionClick = async () => {
+    try {
+      setIsLoading(true)
+      if (isRegistered) {
+        await onUnregister?.(event.id)
+      } else if (!isPastDeadline) {
+        await onRegister?.(event.id)
+      }
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const getActionButtonText = () => {
+    if (isLoading) return "Processing..."
     if (event.registrationStatus === "REGISTERED") return "Registered"
     if (event.registrationStatus === "WAITLISTED") return "Waitlisted"
     if (event.registrationStatus === "PENDING") return "Pending"
@@ -168,9 +176,16 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
           className="w-full"
           variant={getActionButtonVariant()}
           onClick={handleActionClick}
-          disabled={isPastDeadline}
+          disabled={isPastDeadline || isLoading}
         >
-          {getActionButtonText()}
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            getActionButtonText()
+          )}
         </Button>
       </CardFooter>
     </Card>

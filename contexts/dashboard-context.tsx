@@ -65,11 +65,7 @@ const STUDENT_SIDEBAR_ITEMS: SidebarItem[] = [
     icon: "calendar-check",
     href: "/student/events",
   },
-  {
-    title: "My Requests",
-    icon: "users",
-    href: "/student/request",
-  },
+ 
   {
     title: "Settings",
     icon: "download",
