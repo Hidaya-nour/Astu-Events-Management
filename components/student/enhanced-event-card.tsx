@@ -46,7 +46,7 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
   const isPastDeadline = event.registrationStatus === "EXPIRED"
   const isRelevant = event.relevance && event.relevance.length > 0
 
-  const getEventTypeIcon = (type: string) => {
+  const getEventTypeIcon = (type: string | undefined) => {
     switch (type) {
       case "ONLINE":
         return "🌐"
@@ -114,7 +114,7 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
           </div>
           <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
             <Badge variant="outline" className="bg-white/90">
-              {getEventTypeIcon(event.eventType)} {event.eventType.replace("_", " ")}
+              {getEventTypeIcon(event.eventType)} {event.eventType?.replace("_", " ") || "In Person"}
             </Badge>
             <EventStatusBadge status={event.registrationStatus} className="bg-white/90" />
           </div>
@@ -157,10 +157,6 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
             </div>
           </div>
 
-          {event.registrationDeadline && (
-            <div className="text-xs text-muted-foreground">Registration deadline: {event.registrationDeadline}</div>
-          )}
-
           {event.relevance && event.relevance.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {event.relevance.map((type) => (
@@ -172,21 +168,17 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
       </CardContent>
 
       <CardFooter className="p-4 pt-0">
-        <Button
-          className="w-full"
-          variant={getActionButtonVariant()}
-          onClick={handleActionClick}
-          disabled={isPastDeadline || isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            getActionButtonText()
+        <div className="w-full flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Status:</span>
+            <EventStatusBadge status={event.registrationStatus} />
+          </div>
+          {event.registrationDeadline && (
+            <span className="text-xs text-muted-foreground">
+              Deadline: {event.registrationDeadline}
+            </span>
           )}
-        </Button>
+        </div>
       </CardFooter>
     </Card>
   )

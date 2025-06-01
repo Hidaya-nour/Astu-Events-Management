@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { EventFilters } from "@/components/student/event-filters"
 import { EnhancedEventCard } from "@/components/student/enhanced-event-card"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
+import { DashboardProvider } from "@/contexts/dashboard-context"
 import { toast } from "react-toastify"
 import "react-toastify/dist/ReactToastify.css"
 import { useRouter } from "next/navigation"
@@ -34,6 +35,10 @@ interface Event {
   relevance?: ("DEPARTMENT" | "YEAR" | "RECOMMENDED")[]
   isFavorite?: boolean
   images: string[]
+  status?: "PENDING" | "APPROVED" | "REJECTED"
+  startTime?: string
+  capacity?: number
+  currentAttendees?: number
 }
 
 interface Filters {
@@ -52,6 +57,7 @@ export default function EventsPage() {
   const [filters, setFilters] = useState<Filters>({})
   const [registeredEvents, setRegisteredEvents] = useState<Event[]>([])
   const [departmentEvents, setDepartmentEvents] = useState<Event[]>([])
+  const [organizedEvents, setOrganizedEvents] = useState<Event[]>([])
   const [activeTab, setActiveTab] = useState("all")
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -131,7 +137,11 @@ export default function EventsPage() {
         eventType: event.eventType || "IN_PERSON",
         relevance: event.tags?.map((tag: string) => tag.toUpperCase()) || [],
         isFavorite: event.isFavorite || false,
-        images: event.images || []
+        images: event.images || [],
+        status: event.status,
+        startTime: event.startTime,
+        capacity: event.capacity,
+        currentAttendees: event.currentAttendees
       }))
 
       // Update the events state with registered events
@@ -149,6 +159,30 @@ export default function EventsPage() {
     } catch (err) {
       setError(err.message)
       toast.error("Failed to fetch registered events")
+    }
+  }
+
+  // Fetch organized events
+  const fetchOrganizedEvents = async () => {
+    try {
+      const response = await fetch('/api/events/organizer')
+      if (!response.ok) throw new Error('Failed to fetch organized events')
+      const data = await response.json()
+      const transformedEvents = data.map((event: any) => ({
+        ...event,
+        registrationStatus: event.status === "APPROVED" ? "REGISTERED" : "PENDING",
+        time: event.startTime,
+        maxAttendees: event.capacity,
+        attendees: event.currentAttendees,
+        image: "/placeholder.svg",
+        relevance: [],
+        isFavorite: false,
+        eventType: event.eventType || "IN_PERSON",
+      }))
+      setOrganizedEvents(transformedEvents)
+    } catch (err) {
+      setError(err.message)
+      toast.error("Failed to fetch organized events")
     }
   }
 
@@ -349,7 +383,7 @@ export default function EventsPage() {
     const loadData = async () => {
       setLoading(true)
       try {
-        await Promise.all([fetchEvents(), fetchRegisteredEvents()])
+        await Promise.all([fetchEvents(), fetchRegisteredEvents(), fetchOrganizedEvents()])
       } catch (err) {
         console.error('Error loading data:', err)
       } finally {
@@ -379,179 +413,241 @@ export default function EventsPage() {
 
   if (status === 'loading') {
     return (
+      <DashboardProvider
+        role="STUDENT"
+        userInfo={{
+          name: "Loading...",
+          role: "STUDENT",
+        }}
+      >
+        <DashboardLayout
+          appName="ASTU Events"
+          appLogo="/placeholder.svg?height=32&width=32"
+          helpText="Need Assistance?"
+          helpLink="/dashboard/student/support"
+        >
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </DashboardLayout>
+      </DashboardProvider>
+    )
+  }
+
+  return (
+    <DashboardProvider
+      role="STUDENT"
+      userInfo={{
+        name: session?.user?.name || "Student",
+        role: "STUDENT",
+        avatar: session?.user?.image,
+      }}
+    >
       <DashboardLayout
         appName="ASTU Events"
         appLogo="/placeholder.svg?height=32&width=32"
         helpText="Need Assistance?"
         helpLink="/dashboard/student/support"
       >
-        <div className="flex items-center justify-center h-full">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
+        <main className="flex-1 space-y-6 p-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">Explore Events</h2>
+              <p className="text-muted-foreground">Discover and register for events happening around campus</p>
+            </div>
+            <Button onClick={() => router.push('/organizer/events/create')}>
+              Request to Organize
+            </Button>
+          </div>
+
+          <Tabs defaultValue="all" className="space-y-6" onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="all">All Events</TabsTrigger>
+              <TabsTrigger value="registered">My Registrations ({registeredEvents.length})</TabsTrigger>
+              <TabsTrigger value="organized">Created by me ({organizedEvents.length})</TabsTrigger>
+              <TabsTrigger value="recommended">Recommended ({recommendedEvents.length})</TabsTrigger>
+              <TabsTrigger value="department">My Department ({departmentEvents.length})</TabsTrigger>
+            </TabsList>
+
+            <EventFilters
+              onFiltersChange={setFilters}
+              userDepartment={session?.user?.department}
+              userYear={session?.user?.year}
+            />
+
+            <TabsContent value="all" className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredEvents.map((event) => (
+                  <Card 
+                    key={event.id} 
+                    className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={(e) => {
+                      // Don't navigate if clicking the register button
+                      if ((e.target as HTMLElement).closest('button')) {
+                        return;
+                      }
+                      router.push(`/student/events/${event.id}`);
+                    }}                >
+                    <EnhancedEventCard
+                      event={event}
+                      onRegister={handleRegister}
+                      onUnregister={handleUnregister}
+                      onFavorite={handleFavorite}
+                    />
+                  </Card>
+                ))}
+              </div>
+              {filteredEvents.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No events match your current filters</p>
+                  <Button variant="outline" className="mt-4" onClick={() => setFilters({})}>
+                    Clear Filters
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="registered" className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredEvents.map((event) => (
+                  <Card 
+                    key={event.id} 
+                    className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={(e) => {
+                      // Don't navigate if clicking the register button
+                      if ((e.target as HTMLElement).closest('button')) {
+                        return;
+                      }
+                      router.push(`/student/events/${event.id}`);
+                    }}
+                  >
+                    <EnhancedEventCard
+                      event={event}
+                      onRegister={handleRegister}
+                      onUnregister={handleUnregister}
+                      onFavorite={handleFavorite}
+                    />
+                  </Card>
+                ))}
+              </div>
+              {filteredEvents.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">You haven't registered for any events yet</p>
+                  <Button className="mt-4" onClick={() => setActiveTab("all")}>
+                    Browse Events
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="organized" className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {organizedEvents.map((event) => (
+                  <Card 
+                    key={event.id} 
+                    className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button')) {
+                        return;
+                      }
+                      router.push(`/student/events/${event.id}`);
+                    }}
+                  >
+                    <EnhancedEventCard
+                      event={{
+                        ...event,
+                        registrationStatus: event.status === "APPROVED" ? "REGISTERED" : "PENDING",
+                        time: event.startTime,
+                        maxAttendees: event.capacity,
+                        attendees: event.currentAttendees,
+                        image: "/placeholder.svg",
+                        relevance: [],
+                      }}
+                      onRegister={handleRegister}
+                      onUnregister={handleUnregister}
+                      onFavorite={handleFavorite}
+                    />
+                  </Card>
+                ))}
+              </div>
+              {organizedEvents.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">You haven't organized any events yet</p>
+                  <Button className="mt-4" onClick={() => router.push('/organizer/events/create')}>
+                    Request to Organize
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="recommended" className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredEvents.map((event) => (
+                  <Card 
+                    key={event.id} 
+                    className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={(e) => {
+                      // Don't navigate if clicking the register button
+                      if ((e.target as HTMLElement).closest('button')) {
+                        return;
+                      }
+                      router.push(`/student/events/${event.id}`);
+                    }}
+                  >
+                    <EnhancedEventCard
+                      event={event}
+                      onRegister={handleRegister}
+                      onUnregister={handleUnregister}
+                      onFavorite={handleFavorite}
+                    />
+                  </Card>
+                ))}
+              </div>
+              {filteredEvents.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No recommended events match your current filters</p>
+                  <Button variant="outline" className="mt-4" onClick={() => setFilters({})}>
+                    Clear Filters
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="department" className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredEvents.map((event) => (
+                  <Card 
+                    key={event.id} 
+                    className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={(e) => {
+                      // Don't navigate if clicking the register button
+                      if ((e.target as HTMLElement).closest('button')) {
+                        return;
+                      }
+                      router.push(`/student/events/${event.id}`);
+                    }}
+                  >
+                    <EnhancedEventCard
+                      event={event}
+                      onRegister={handleRegister}
+                      onUnregister={handleUnregister}
+                      onFavorite={handleFavorite}
+                    />
+                  </Card>
+                ))}
+              </div>
+              {filteredEvents.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No department events match your current filters</p>
+                  <Button variant="outline" className="mt-4" onClick={() => setFilters({})}>
+                    Clear Filters
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </main>
       </DashboardLayout>
-    )
-  }
-
-  return (
-    <DashboardLayout
-      appName="ASTU Events"
-      appLogo="/placeholder.svg?height=32&width=32"
-      helpText="Need Assistance?"
-      helpLink="/dashboard/student/support"
-    >
-      <main className="flex-1 space-y-6 p-6">
-        <div>
-          <h2 className="text-2xl font-bold">Explore Events</h2>
-          <p className="text-muted-foreground">Discover and register for events happening around campus</p>
-        </div>
-
-        <Tabs defaultValue="all" className="space-y-6" onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="all">All Events</TabsTrigger>
-            <TabsTrigger value="registered">My Registrations ({registeredEvents.length})</TabsTrigger>
-            <TabsTrigger value="recommended">Recommended ({recommendedEvents.length})</TabsTrigger>
-            <TabsTrigger value="department">My Department ({departmentEvents.length})</TabsTrigger>
-          </TabsList>
-
-          <EventFilters
-            onFiltersChange={setFilters}
-            userDepartment={session?.user?.department}
-            userYear={session?.user?.year}
-          />
-
-          <TabsContent value="all" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredEvents.map((event) => (
-                <Card 
-                  key={event.id} 
-                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={(e) => {
-                    // Don't navigate if clicking the register button
-                    if ((e.target as HTMLElement).closest('button')) {
-                      return;
-                    }
-                    router.push(`/student/events/${event.id}`);
-                  }}                >
-                  <EnhancedEventCard
-                    event={event}
-                    onRegister={handleRegister}
-                    onUnregister={handleUnregister}
-                    onFavorite={handleFavorite}
-                  />
-                </Card>
-              ))}
-            </div>
-            {filteredEvents.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No events match your current filters</p>
-                <Button variant="outline" className="mt-4" onClick={() => setFilters({})}>
-                  Clear Filters
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="registered" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredEvents.map((event) => (
-                <Card 
-                  key={event.id} 
-                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={(e) => {
-                    // Don't navigate if clicking the register button
-                    if ((e.target as HTMLElement).closest('button')) {
-                      return;
-                    }
-                    router.push(`/student/events/${event.id}`);
-                  }}
->
-                  <EnhancedEventCard
-                    event={event}
-                    onRegister={handleRegister}
-                    onUnregister={handleUnregister}
-                    onFavorite={handleFavorite}
-                  />
-                </Card>
-              ))}
-            </div>
-            {filteredEvents.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">You haven't registered for any events yet</p>
-                <Button className="mt-4" onClick={() => setActiveTab("all")}>
-                  Browse Events
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="recommended" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredEvents.map((event) => (
-                <Card 
-                  key={event.id} 
-                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={(e) => {
-                    // Don't navigate if clicking the register button
-                    if ((e.target as HTMLElement).closest('button')) {
-                      return;
-                    }
-                    router.push(`/student/events/${event.id}`);
-                  }}
-
-                >
-                  <EnhancedEventCard
-                    event={event}
-                    onRegister={handleRegister}
-                    onUnregister={handleUnregister}
-                    onFavorite={handleFavorite}
-                  />
-                </Card>
-              ))}
-            </div>
-            {filteredEvents.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No recommended events match your current filters</p>
-                <Button variant="outline" className="mt-4" onClick={() => setFilters({})}>
-                  Clear Filters
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="department" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredEvents.map((event) => (
-                <Card 
-                  key={event.id} 
-                  className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={(e) => {
-                    // Don't navigate if clicking the register button
-                    if ((e.target as HTMLElement).closest('button')) {
-                      return;
-                    }
-                    router.push(`/student/events/${event.id}`);
-                  }}
->
-                  <EnhancedEventCard
-                    event={event}
-                    onRegister={handleRegister}
-                    onUnregister={handleUnregister}
-                    onFavorite={handleFavorite}
-                  />
-                </Card>
-              ))}
-            </div>
-            {filteredEvents.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No department events match your current filters</p>
-                <Button variant="outline" className="mt-4" onClick={() => setFilters({})}>
-                  Clear Filters
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </main>
-    </DashboardLayout>
+    </DashboardProvider>
   )
 }

@@ -9,8 +9,9 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Home, ChevronRight } from "lucide-react"
+import { Home, ChevronRight, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 import { Calendar, ChevronDown, Filter, MessageSquare, PlusCircle, Settings, Users } from "lucide-react"
 import Image from "next/image"
@@ -23,6 +24,8 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function CreateEventPage() {
+  const router = useRouter()
+
   return (
     <DashboardLayout
       appName="ASTU Events"
@@ -32,7 +35,17 @@ export default function CreateEventPage() {
     >
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold tracking-tight">Create New Event</h1>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.back()}
+              className="hover:bg-accent"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-2xl font-bold tracking-tight">Create New Event</h1>
+          </div>
         </div>
 
         <Breadcrumb className="mb-6">
