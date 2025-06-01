@@ -181,28 +181,15 @@ export default function StudentDashboard() {
       
       const data = await response.json()
       
-      const transformedEvents = data.events.map((event: any) => {
-        let imageUrl = "/placeholder.svg";
-      
-        try {
-          const parsedImages = JSON.parse(event.images);
-          if (Array.isArray(parsedImages)) {
-            imageUrl = parsedImages[0];
-          }
-        } catch (e) {
-          console.warn("Could not parse images", e);
+      const transformedEvents = data.events.map((event: any) => ({
+        ...event,
+        images: event.images || "/placeholder.svg",
+        organizer: {
+          id: event.createdById || "",
+          name: event.createdBy?.name || "Unknown Organizer",
+          avatar: event.createdBy?.image || "/placeholder.svg"
         }
-      
-        return {
-          ...event,
-          images: imageUrl,
-          organizer: {
-            id: event.createdById || "",
-            name: event.createdBy?.name || "Unknown Organizer",
-            avatar: event.createdBy?.image || "/placeholder.svg"
-          }
-        };
-      });
+      }));
       
       setEvents(transformedEvents)
     } catch (err) {
@@ -427,7 +414,7 @@ export default function StudentDashboard() {
                       className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
                       onClick={() => router.push(`/student/events/${event.id}`)}
                     >
-                      <EventCard 
+                      <EventCard
                         event={event} 
                         variant="compact"
                         onRegister={handleRegister}

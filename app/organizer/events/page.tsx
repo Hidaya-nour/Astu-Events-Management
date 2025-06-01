@@ -81,6 +81,8 @@ interface Event {
   status: string
   capacity: number
   currentAttendees: number
+  image?: string
+  images?: string[]
 }
 
 export default function OrganizerEventsPage() {
@@ -259,8 +261,30 @@ export default function OrganizerEventsPage() {
           throw new Error("Failed to fetch events")
         }
         const data = await response.json()
-        setEvents(data)
-        setFilteredEvents(data)
+        const transformedEvents = data.events.map((event: any) => {
+          let imageUrl = "/placeholder.svg";
+          let images = [];
+
+          try {
+            if (event.images) {
+              const parsedImages = JSON.parse(event.images);
+              if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+                images = parsedImages;
+                imageUrl = parsedImages[0];
+              }
+            }
+          } catch (e) {
+            console.warn("Could not parse images", e);
+          }
+
+          return {
+            ...event,
+            image: imageUrl,
+            images: images
+          };
+        });
+        setEvents(transformedEvents)
+        setFilteredEvents(transformedEvents)
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred")
       } finally {

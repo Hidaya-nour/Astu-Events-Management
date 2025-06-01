@@ -66,6 +66,21 @@ interface FilterState {
   }
 }
 
+interface Event {
+  id: string
+  title: string
+  date: Date
+  startTime: string
+  endTime: string
+  location: string
+  category: string
+  status: string
+  capacity: number
+  currentAttendees: number
+  image?: string
+  images?: string[]
+}
+
 export default function AdminEventsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()

@@ -19,6 +19,7 @@ interface Event {
   date: string
   location: string
   image?: string
+  images?: string[]
   status: string
   registrations: number
   capacity: number
@@ -45,16 +46,36 @@ export default function OrganizerDashboard() {
         const data = await response.json()
         
         // Transform the API data to match our Event interface
-        const transformedEvents = data.map((event: any) => ({
-          id: event.id,
-          title: event.title,
-          date: new Date(event.date).toLocaleDateString(),
-          location: event.location,
-          image: event.image || "/placeholder.svg?height=200&width=400",
-          status: getEventStatus(event.date),
-          registrations: event.currentAttendees || 0,
-          capacity: event.maxAttendees || 0,
-        }))
+        const transformedEvents = data.map((event: any) => {
+          let imageUrl = "/placeholder.svg?height=200&width=400";
+          let images = [];
+
+          try {
+            if (event.images) {
+              const parsedImages = JSON.parse(event.images);
+              if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+                images = parsedImages.map((img: string) => img.trim());
+                imageUrl = images[0];
+              }
+            } else if (event.image) {
+              imageUrl = event.image.trim();
+            }
+          } catch (e) {
+            console.warn("Could not parse images", e);
+          }
+
+          return {
+            id: event.id,
+            title: event.title,
+            date: new Date(event.date).toLocaleDateString(),
+            location: event.location,
+            image: imageUrl,
+            images: images,
+            status: getEventStatus(event.date),
+            registrations: event.currentAttendees || 0,
+            capacity: event.maxAttendees || 0,
+          }
+        })
 
         setEvents(transformedEvents)
 
@@ -269,10 +290,11 @@ function OrganizerEventCard({ event }: { event: Event }) {
     <Card className="overflow-hidden">
       <div className="aspect-video relative">
         <Image
-          src={event.image || "/placeholder.svg?height=200&width=400"}
+          src={event.image}
           alt={event.title}
           fill
           className="object-cover"
+          priority={true}
         />
         <Badge className="absolute right-2 top-2" variant={getOrganizerStatusVariant(event.status)}>
           {event.status}

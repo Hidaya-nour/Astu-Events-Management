@@ -96,7 +96,7 @@ export default function UserManagementPage() {
     if (status === "unauthenticated") {
       router.push("/login")
     } else if (session?.user?.role !== "ADMIN") {
-      router.push("/dashboard")
+      // router.push("/dashboard")
     }
   }, [session, status, router])
 

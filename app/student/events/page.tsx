@@ -33,6 +33,7 @@ interface Event {
   eventType: "IN_PERSON" | "ONLINE" | "HYBRID"
   relevance?: ("DEPARTMENT" | "YEAR" | "RECOMMENDED")[]
   isFavorite?: boolean
+  images: string[]
 }
 
 interface Filters {
@@ -64,10 +65,29 @@ export default function EventsPage() {
       if (!response.ok) throw new Error('Failed to fetch events')
       const data = await response.json()
       // Transform the events data to ensure organizer is a string
-      const transformedEvents = data.events.map((event: any) => ({
-        ...event,
-        organizer: typeof event.organizer === 'object' ? event.organizer.name : event.organizer
-      }))
+      const transformedEvents = data.events.map((event: any) => {
+        let imageUrl = "/placeholder.svg";
+        let images = [];
+
+        try {
+          if (event.images) {
+            const parsedImages = JSON.parse(event.images);
+            if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+              images = parsedImages;
+              imageUrl = parsedImages[0];
+            }
+          }
+        } catch (e) {
+          console.warn("Could not parse images", e);
+        }
+
+        return {
+          ...event,
+          image: imageUrl,
+          images: images,
+          organizer: typeof event.organizer === 'object' ? event.organizer.name : event.organizer
+        }
+      })
       setEvents(transformedEvents)
     } catch (err) {
       setError(err.message)
@@ -110,7 +130,8 @@ export default function EventsPage() {
         registrationDeadline: event.registrationDeadline,
         eventType: event.eventType || "IN_PERSON",
         relevance: event.tags?.map((tag: string) => tag.toUpperCase()) || [],
-        isFavorite: event.isFavorite || false
+        isFavorite: event.isFavorite || false,
+        images: event.images || []
       }))
 
       // Update the events state with registered events
