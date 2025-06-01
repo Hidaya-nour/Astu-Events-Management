@@ -139,13 +139,20 @@ export default function EventDetailsPage() {
   const handleRegister = async () => {
     try {
       setRegistering(true)
-      // In a real application, you would call your API
-      const response = await fetch('/api/events/register', {
+      const response = await fetch(`/api/registration/${event?.id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId: event?.id }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
       })
-      if (!response.ok) throw new Error("Registration failed")
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Registration failed")
+      }
+
+      const data = await response.json()
 
       // Update local state
       if (event) {
@@ -157,9 +164,9 @@ export default function EventDetailsPage() {
         })
       }
 
-      toast.success("Registration Successfuly")
+      toast.success("Successfully registered for event")
     } catch (err) {
-      toast.error("Registration Failed")
+      toast.error(err instanceof Error ? err.message : "Failed to register for event")
     } finally {
       setRegistering(false)
     }
@@ -168,13 +175,17 @@ export default function EventDetailsPage() {
   const handleCancelRegistration = async () => {
     try {
       setRegistering(true)
-      const response = await fetch(`/api/events/register/${event?.id}`, {
+      const response = await fetch(`/api/registration/${event?.id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
       })
-      if (!response.ok) throw new Error("Cancellation failed")
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Cancellation failed")
+      }
 
       // Update local state
       if (event) {
@@ -186,9 +197,9 @@ export default function EventDetailsPage() {
         })
       }
 
-      toast.success("Registration Cancelled")
+      toast.success("Successfully cancelled registration")
     } catch (err) {
-      toast.error("Cancellation Failed")
+      toast.error(err instanceof Error ? err.message : "Failed to cancel registration")
     } finally {
       setRegistering(false)
     }

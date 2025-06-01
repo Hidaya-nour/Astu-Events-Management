@@ -95,6 +95,7 @@ export default function StudentDashboard() {
   const user = session?.user as SessionUser | undefined
   const [events, setEvents] = useState<Event[]>([])
   const [myEvents, setMyEvents] = useState<Event[]>([])
+  const [organizedEvents, setOrganizedEvents] = useState<Event[]>([])
   const [recommendedEvents, setRecommendedEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -169,7 +170,7 @@ export default function StudentDashboard() {
       }
 
       // Add sorting
-      queryParams.set('sort', 'upcoming')
+      // queryParams.set('sort', 'upcoming')
 
       console.log('Fetching events with params:', queryParams.toString())
       const response = await fetch(`/api/events?${queryParams.toString()}`)
@@ -252,6 +253,36 @@ export default function StudentDashboard() {
     }
   }
 
+  // Fetch events organized by the student
+  const fetchOrganizedEvents = async () => {
+    try {
+      const response = await fetch('/api/events/organizer')
+      if (!response.ok) throw new Error('Failed to fetch organized events')
+      const data = await response.json()
+      
+      const transformedEvents = data.map((event: any) => ({
+        ...event,
+        description: event.description || "",
+        venue: event.venue || "",
+        images: event.images || "/placeholder.svg",
+        organizer: {
+          id: event.createdById || "",
+          name: event.createdBy?.name || "Unknown Organizer",
+          avatar: event.createdBy?.image || "/placeholder.svg"
+        },
+        _count: {
+          registrations: event.currentAttendees || 0
+        }
+      }));
+      
+      setOrganizedEvents(transformedEvents)
+    } catch (err) {
+      console.error('Error fetching organized events:', err)
+      setError(err.message)
+      setOrganizedEvents([])
+    }
+  }
+
   // Handle event registration
   const handleRegister = async (eventId: string) => {
     try {
@@ -267,15 +298,13 @@ export default function StudentDashboard() {
         throw new Error(data.error || 'Failed to register for event')
       }
 
-      // Refresh events after registration
+      // Refresh both events lists
       await Promise.all([
         fetchEvents(),
         fetchMyEvents(),
       ])
 
-      // toast.success("Successfully registered for the event")
     } catch (error) {
-      // toast.error("Failed to register for the event")
     }
   }
 
@@ -311,6 +340,7 @@ export default function StudentDashboard() {
           fetchEvents(),
           fetchMyEvents(),
           fetchRecommendedEvents(),
+          fetchOrganizedEvents(),
         ])
       } catch (err) {
         console.error('Error loading data:', err)
@@ -412,7 +442,13 @@ export default function StudentDashboard() {
                     <div 
                       key={event.id}
                       className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
-                      onClick={() => router.push(`/student/events/${event.id}`)}
+                      onClick={(e) => {
+                        // Don't navigate if clicking the register button
+                        if ((e.target as HTMLElement).closest('button')) {
+                          return;
+                        }
+                        router.push(`/student/events/${event.id}`);
+                      }}
                     >
                       <EventCard
                         event={event} 
@@ -443,7 +479,13 @@ export default function StudentDashboard() {
                     <div 
                       key={event.id}
                       className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
-                      onClick={() => router.push(`/student/events/${event.id}`)}
+                      onClick={(e) => {
+                        // Don't navigate if clicking the register button
+                        if ((e.target as HTMLElement).closest('button')) {
+                          return;
+                        }
+                        router.push(`/student/events/${event.id}`);
+                      }}
                     >
                       <EventCard 
                         event={event} 
@@ -477,7 +519,13 @@ export default function StudentDashboard() {
                 <div 
                   key={event.id}
                   className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
-                  onClick={() => router.push(`/student/events/${event.id}`)}
+                  onClick={(e) => {
+                    // Don't navigate if clicking the register button
+                    if ((e.target as HTMLElement).closest('button')) {
+                      return;
+                    }
+                    router.push(`/student/events/${event.id}`);
+                  }}
                 >
                   <EventCard 
                     event={event}
@@ -497,25 +545,58 @@ export default function StudentDashboard() {
           </TabsContent>
 
           <TabsContent value="my-events" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">My Registered Events</h3>
-              <Badge variant="secondary">{myEvents.length} events</Badge>
-            </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {myEvents.map((event) => (
-                <div 
-                  key={event.id}
-                  className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
-                  onClick={() => router.push(`/student/events/${event.id}`)}
-                >
-                  <EventCard 
-                    event={event}
-                    onRegister={handleRegister}
-                    onCancelRegistration={handleCancelRegistration}
-                  />
+            <Tabs defaultValue="registered" className="space-y-6">
+              <TabsList>
+                <TabsTrigger value="registered">Registered Events</TabsTrigger>
+                <TabsTrigger value="organized">Organized Events</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="registered">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">My Registered Events</h3>
+                  <Badge variant="secondary">{myEvents.length} events</Badge>
                 </div>
-              ))}
-            </div>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {myEvents.map((event) => (
+                    <div 
+                      key={event.id}
+                      className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
+                      onClick={() => router.push(`/student/events/${event.id}`)}
+                    >
+                      <EventCard 
+                        event={event}
+                        onRegister={handleRegister}
+                        onCancelRegistration={handleCancelRegistration}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="organized">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Events I Organized</h3>
+                  <Badge variant="secondary">{organizedEvents.length} events</Badge>
+                </div>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {organizedEvents.map((event) => (
+                    <div 
+                      key={event.id}
+                      className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
+                      onClick={() => router.push(`/student/events/${event.id}`)}
+                    >
+                      <EventCard 
+                        event={{
+                          ...event,
+                          status: event.status || "PENDING"
+                        }}
+                        showStatus={true}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="recommended" className="space-y-6">
@@ -530,7 +611,13 @@ export default function StudentDashboard() {
                 <div 
                   key={event.id}
                   className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
-                  onClick={() => router.push(`/student/events/${event.id}`)}
+                  onClick={(e) => {
+                    // Don't navigate if clicking the register button
+                    if ((e.target as HTMLElement).closest('button')) {
+                      return;
+                    }
+                    router.push(`/student/events/${event.id}`);
+                  }}
                 >
                   <EventCard 
                     event={event}
