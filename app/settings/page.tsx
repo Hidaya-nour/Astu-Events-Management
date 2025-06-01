@@ -1,3 +1,4 @@
+'use client'
 import SettingsTabs from "@/components/settings/settings-tabs"
 import { Suspense } from "react"
 import SettingsSkeleton from "@/components/settings/settings-skeleton"
