@@ -1,0 +1,22 @@
+{
+  "ratings": [
+    {
+      "userId": "student1",
+      "eventId": "web-dev-workshop",
+      "rating": 5.0,
+      "timestamp": "2024-03-20T10:00:00Z"
+    },
+    {
+      "userId": "student1",
+      "eventId": "ai-ml-seminar",
+      "rating": 4.0,
+      "timestamp": "2024-03-21T14:00:00Z"
+    },
+    {
+      "userId": "student2",
+      "eventId": "web-dev-workshop",
+      "rating": 4.0,
+      "timestamp": "2024-03-20T11:00:00Z"
+    }
+  ]
+} 

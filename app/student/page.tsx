@@ -40,6 +40,15 @@ interface Event {
   isFavorite?: boolean
   status?: string
   approvalStatus?: "APPROVED" | "REJECTED" | "PENDING"
+  attendees?: {
+    id: string
+    name: string
+    email: string
+    image?: string
+    department?: string
+    year?: number
+    registrationStatus: string
+  }[]
 }
 
 // Add type for the session user
@@ -233,7 +242,8 @@ export default function StudentDashboard() {
         },
         isRegistered: true,
         registrationStatus: event.status,
-        isFavorite: event.isFavorite || false
+        isFavorite: event.isFavorite || false,
+        attendees: event.attendees || []
       }))
       
       setMyEvents(transformedEvents)
@@ -246,11 +256,24 @@ export default function StudentDashboard() {
   // Fetch recommended events
   const fetchRecommendedEvents = async () => {
     try {
-      const response = await fetch('/api/events?sort=recommended')
+      const response = await fetch('/api/recommendations')
       if (!response.ok) throw new Error('Failed to fetch recommended events')
       const data = await response.json()
-      setRecommendedEvents(data.events)
+      
+      // Transform the data to match the Event interface
+      const transformedEvents = data.map((event: any) => ({
+        ...event,
+        images: event.images || "/placeholder.svg",
+        organizer: {
+          id: event.createdById || "",
+          name: event.createdBy?.name || "Unknown Organizer",
+          avatar: event.createdBy?.image || "/placeholder.svg"
+        }
+      }));
+      
+      setRecommendedEvents(transformedEvents)
     } catch (err) {
+      console.error('Error fetching recommended events:', err)
       setError(err.message)
       toast.error("Failed to fetch recommended events")
     }
@@ -342,11 +365,12 @@ export default function StudentDashboard() {
         await Promise.all([
           fetchEvents(),
           fetchMyEvents(),
-          fetchRecommendedEvents(),
           fetchOrganizedEvents(),
+          fetchRecommendedEvents()
         ])
       } catch (err) {
         console.error('Error loading data:', err)
+        setError(err.message)
       } finally {
         setLoading(false)
       }
@@ -421,6 +445,7 @@ export default function StudentDashboard() {
             <UpcomingEvent event={events[0]} />
           </div>
         )}
+
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList>
@@ -446,7 +471,6 @@ export default function StudentDashboard() {
                       key={event.id}
                       className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
                       onClick={(e) => {
-                        // Don't navigate if clicking the register button
                         if ((e.target as HTMLElement).closest('button')) {
                           return;
                         }
@@ -483,7 +507,6 @@ export default function StudentDashboard() {
                       key={event.id}
                       className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
                       onClick={(e) => {
-                        // Don't navigate if clicking the register button
                         if ((e.target as HTMLElement).closest('button')) {
                           return;
                         }
@@ -523,7 +546,6 @@ export default function StudentDashboard() {
                   key={event.id}
                   className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
                   onClick={(e) => {
-                    // Don't navigate if clicking the register button
                     if ((e.target as HTMLElement).closest('button')) {
                       return;
                     }
@@ -616,7 +638,6 @@ export default function StudentDashboard() {
                   key={event.id}
                   className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors"
                   onClick={(e) => {
-                    // Don't navigate if clicking the register button
                     if ((e.target as HTMLElement).closest('button')) {
                       return;
                     }

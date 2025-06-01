@@ -59,8 +59,11 @@ interface Organizer {
 interface Attendee {
   id: string
   name: string
+  email: string
   department?: string
+  year?: number
   image?: string
+  registrationStatus: "PENDING" | "CONFIRMED" | "CANCELLED" | "WAITLISTED"
 }
 
 interface Event {
@@ -529,26 +532,74 @@ export default function EventDetailsPage() {
 
             <TabsContent value="attendees" className="pt-4">
               {event.attendees && event.attendees.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {event.attendees.map((attendee) => (
-                    <div key={attendee.id} className="flex items-center space-x-3 p-3 rounded-md border">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={attendee.image || "/placeholder.svg?height=40&width=40"} />
-                        <AvatarFallback>{attendee.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
                     <div>
-                        <p className="font-medium">{attendee.name}</p>
-                        {attendee.department && <p className="text-xs text-muted-foreground">{attendee.department}</p>}
-                      </div>
+                      <h3 className="text-lg font-semibold">Attendees</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {event.attendees.length} people registered
+                      </p>
                     </div>
-                  ))}
+                    <div className="flex gap-2">
+                      <Badge variant="outline" className="bg-green-50 text-green-700">
+                        {event.attendees.filter(a => a.registrationStatus === "CONFIRMED").length} Confirmed
+                      </Badge>
+                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
+                        {event.attendees.filter(a => a.registrationStatus === "PENDING").length} Pending
+                      </Badge>
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                        {event.attendees.filter(a => a.registrationStatus === "WAITLISTED").length} Waitlisted
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {event.attendees.map((attendee) => (
+                      <div key={attendee.id} className="flex items-center space-x-3 p-3 rounded-md border">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={attendee.image || "/placeholder.svg?height=40&width=40"} />
+                          <AvatarFallback>{attendee.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{attendee.name}</p>
+                          <div className="flex items-center gap-2">
+                            {attendee.department && (
+                              <p className="text-xs text-muted-foreground truncate">{attendee.department}</p>
+                            )}
+                            {attendee.year && (
+                              <p className="text-xs text-muted-foreground">Year {attendee.year}</p>
+                            )}
+                          </div>
+                          <Badge 
+                            variant="outline" 
+                            className={`mt-1 ${
+                              attendee.registrationStatus === "CONFIRMED" 
+                                ? "bg-green-50 text-green-700" 
+                                : attendee.registrationStatus === "PENDING"
+                                ? "bg-yellow-50 text-yellow-700"
+                                : attendee.registrationStatus === "WAITLISTED"
+                                ? "bg-blue-50 text-blue-700"
+                                : "bg-red-50 text-red-700"
+                            }`}
+                          >
+                            {attendee.registrationStatus}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                  <p>No attendees yet. Be the first to register!</p>
-                  </div>
-                )}
+                  <p className="text-muted-foreground">No attendees yet. Be the first to register!</p>
+                  {!event.isRegistered && !hasEventPassed && !isEventFull && (
+                    <Button className="mt-4" onClick={handleRegister}>
+                      Register Now
+                    </Button>
+                  )}
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="similar" className="pt-4">
