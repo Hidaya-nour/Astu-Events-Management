@@ -85,14 +85,13 @@ export default function ProfileHeader() {
     }
   }
   // coverimagehandler
+ 
   const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
     try {
       setIsUploading(true)
       await new Promise((resolve) => setTimeout(resolve, 1000))
-
       setUser((prev) => ({ ...prev, coverImage: URL.createObjectURL(file) }))
       toast({
         title: "Cover image updated",
@@ -101,60 +100,70 @@ export default function ProfileHeader() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to upload image. Please try again.",
+        description: "Failed to upload cover image. Please try again.",
         variant: "destructive",
       })
     } finally {
       setIsUploading(false)
     }
   }
+
   return (
-    <div className="rounded-lg bg-white shadow-md dark:bg-gray-800">
-      <div className="relative h-48 w-full overflow-hidden rounded-t-lg sm:h-64">
-        <Image src={user.coverImage || "/placeholder.svg"} alt="Cover" className="object-cover" fill priority />
-        <label htmlFor="cover-upload" className="absolute bottom-4 right-4">
-         
-          <Camera className="mr-2 h-4 w-4" />
-              <input
-                id="cover-upload"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleCoverImageUpload}
-                disabled={isUploading}
-              />
-        </label>
-        
-      </div>
+    <>
+      <div className="rounded-lg bg-white shadow-md dark:bg-gray-800">
+        <div
+          className="relative h-48 w-full overflow-hidden rounded-t-lg sm:h-64"
+          style={{
+            backgroundImage: `url(${user.coverImage || "/placeholder.svg"})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
+          <label htmlFor="cover-upload">
+            <Button size="sm" variant="secondary" className="absolute bottom-4 right-4" asChild>
+              <span>
+                <Camera className="mr-2 h-4 w-4" />
+                {isUploading ? "Uploading..." : "Change Cover"}
+              </span>
+            </Button>
+            <input
+              id="cover-upload"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleCoverImageUpload}
+              disabled={isUploading}
+            />
+          </label>
+        </div>
 
-      <div className="px-6 pb-6">
-        <div className="flex flex-col items-center sm:flex-row sm:items-end sm:-mt-16">
-          <div className="relative mb-4 sm:mb-0">
-            <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-gray-100 dark:border-gray-800">
-              <Image
-                src={user.profileImage || "/placeholder.svg"}
-                alt={user.name}
-                className="object-cover"
-                fill
-                priority
-              />
+        <div className="px-6 pb-6">
+          <div className="flex flex-col items-center sm:flex-row sm:items-end">
+            <div className="relative mb-4 sm:mb-0">
+              <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-gray-100 dark:border-gray-800">
+                <Image
+                  src={user.profileImage || "/placeholder.svg"}
+                  alt={user.name}
+                  className="object-cover"
+                  fill
+                  priority
+                />
+              </div>
+              <label
+                htmlFor="profile-upload"
+                className="absolute bottom-0 right-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-md hover:bg-primary/90"
+              >
+                <Camera className="h-4 w-4" />
+                <input
+                  id="profile-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleProfileImageUpload}
+                  disabled={isUploading}
+                />
+              </label>
             </div>
-            <label
-              htmlFor="profile-upload"
-              className="absolute bottom-0 right-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-md hover:bg-primary/90"
-            >
-              <Camera className="h-4 w-4" />
-              <input
-                id="profile-upload"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleProfileImageUpload}
-                disabled={isUploading}
-              />
-            </label>
-          </div>
-
           <div className="flex flex-1 flex-col items-center text-center sm:items-start sm:pl-6 sm:text-left">
             <div className="flex items-center gap-2">
               {isEditingName ? (
@@ -201,5 +210,7 @@ export default function ProfileHeader() {
         </div>
       </div>
     </div>
+ </>
   )
 }
+
