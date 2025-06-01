@@ -65,11 +65,7 @@ const STUDENT_SIDEBAR_ITEMS: SidebarItem[] = [
     icon: "calendar-check",
     href: "/student/events",
   },
-  {
-    title: "My Registrations",
-    icon: "users",
-    href: "/student/registrations",
-  },
+ 
   {
     title: "Settings",
     icon: "download",
@@ -91,7 +87,7 @@ const ADMIN_SIDEBAR_ITEMS: SidebarItem[] = [
   {
     title: "Users",
     icon: "users",
-    href: "/admin/users",
+    href: "/admin/user-management",
   },
   {
     title: "Settings",

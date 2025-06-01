@@ -28,6 +28,11 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Card, CardContent } from "@/components/ui/card"
+import { ViewEventDetails } from "./view-events-details"
+import { EditEventForm } from "./edit-event-form"
+import { DeleteEventDialog } from "./delete-event-dialog"
+import { toast } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 interface Event {
   id: string
@@ -93,6 +98,10 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalEvents, setTotalEvents] = useState(0)
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [viewDialogOpen, setViewDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const eventsPerPage = 10
 
   useEffect(() => {
@@ -212,6 +221,83 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
+  }
+
+  const handleViewEvent = (event: Event) => {
+    setSelectedEvent(event)
+    setViewDialogOpen(true)
+  }
+
+  const handleEditEvent = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to fetch event details')
+      }
+      const event = await response.json()
+      setSelectedEvent(event)
+      setEditDialogOpen(true)
+    } catch (error) {
+      console.error('Error fetching event:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch event details. Please try again.')
+    }
+  }
+
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete event')
+      }
+
+      setEvents(events.filter(event => event.id !== eventId))
+      toast.success('Event deleted successfully')
+      setDeleteDialogOpen(false)
+    } catch (error) {
+      console.error('Error deleting event:', error)
+      toast.error('Failed to delete event. Please try again.')
+    }
+  }
+
+  const handleEventUpdated = (updatedEvent: Event) => {
+    setEvents(events.map(event => event.id === updatedEvent.id ? updatedEvent : event))
+    setEditDialogOpen(false)
+  }
+
+  const handleEventDeleted = (eventId: string) => {
+    setEvents(events.filter(event => event.id !== eventId))
+    setDeleteDialogOpen(false)
+  }
+
+  const handleSaveEvent = async (eventId: string, data: any) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update event')
+      }
+
+      const updatedEvent = await response.json()
+      setEvents(events.map(event => 
+        event.id === eventId ? updatedEvent : event
+      ))
+      
+      toast.success('Event updated successfully')
+      setEditDialogOpen(false)
+    } catch (error) {
+      console.error('Error updating event:', error)
+      toast.error('Failed to update event. Please try again.')
+    }
   }
 
   if (loading) {
@@ -349,11 +435,11 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewEvent(event)}>
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEditEvent(event.id)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Event
                       </DropdownMenuItem>
@@ -362,7 +448,10 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
                         Manage Attendees
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-red-600">
+                      <DropdownMenuItem 
+                        className="text-red-600"
+                        onClick={() => handleDeleteEvent(event.id)}
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Event
                       </DropdownMenuItem>
@@ -417,6 +506,67 @@ export function AdminEventsTable({ searchQuery, sortBy, filters }: AdminEventsTa
           </PaginationContent>
         </Pagination>
       </div>
+
+      {/* View Dialog */}
+      <ViewEventDetails
+        event={selectedEvent}
+        isOpen={viewDialogOpen}
+        onClose={() => setViewDialogOpen(false)}
+        onEdit={handleEditEvent}
+        onDelete={handleDeleteEvent}
+        onApprove={async (eventId) => {
+          // Implement approve functionality
+          const response = await fetch(`/api/events/${eventId}/approve`, {
+            method: 'PUT',
+          })
+          if (response.ok) {
+            const updatedEvent = await response.json()
+            setEvents(events.map(event => event.id === updatedEvent.id ? updatedEvent : event))
+          }
+        }}
+        onReject={async (eventId) => {
+          // Implement reject functionality
+          const response = await fetch(`/api/events/${eventId}/reject`, {
+            method: 'PUT',
+          })
+          if (response.ok) {
+            const updatedEvent = await response.json()
+            setEvents(events.map(event => event.id === updatedEvent.id ? updatedEvent : event))
+          }
+        }}
+        onFeature={async (eventId, featured) => {
+          // Implement feature functionality
+          const response = await fetch(`/api/events/${eventId}/feature`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ featured }),
+          })
+          if (response.ok) {
+            const updatedEvent = await response.json()
+            setEvents(events.map(event => event.id === updatedEvent.id ? updatedEvent : event))
+          }
+        }}
+      />
+
+      {/* Edit Dialog */}
+      <EditEventForm
+        event={selectedEvent}
+        isOpen={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        onSave={handleSaveEvent}
+      />
+
+      {/* Delete Dialog */}
+      <DeleteEventDialog
+        eventId={selectedEvent?.id || null}
+        eventTitle={selectedEvent?.title}
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDeleteEvent}
+      />
     </div>
   )
 }
+

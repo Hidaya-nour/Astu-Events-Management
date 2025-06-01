@@ -1,246 +1,315 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Calendar, Clock, MapPin, Share2, Users, Heart } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useToast } from "@/hooks/use-toast"
-import { mockEvents } from "@/lib/mock-data"
-import { notFound } from "next/navigation"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { ArrowLeft, Calendar, Clock, MapPin, Share, Users } from "lucide-react"
+import { toast } from "react-toastify"
 
-export default function EventPage({ params }: { params: { id: string } }) {
-  const { toast } = useToast()
-  const [isRegistering, setIsRegistering] = useState(false)
-  const [isRegistered, setIsRegistered] = useState(false)
-  const [isSaved, setIsSaved] = useState(false)
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-  // Find the event from mock data
-  const event = mockEvents.find((e) => e.id === params.id)
+interface Event {
+  id: string
+  title: string
+  description: string
+  longDescription?: string
+  date: string
+  time: string
+  duration?: string
+  location: string
+  address?: string
+  category: string
+  image?: string
+  capacity: number
+  registrations: number
+  registrationDeadline?: string
+  organizer?: string
+  contactEmail?: string
+  sponsors?: string[]
+  schedule?: Array<{
+    time: string
+    title: string
+    description: string
+    speaker?: string
+  }>
+  isRegistered?: boolean
+  registrationStatus?: "PENDING" | "CONFIRMED" | "CANCELLED" | "WAITLISTED"
+}
 
-  // If event not found, show 404
-  if (!event) {
-    notFound()
-  }
+export default function EventDetailsPage({ params }: { params: { id: string } }) {
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [event, setEvent] = useState<Event | null>(null)
+  const [isLoadingEvent, setIsLoadingEvent] = useState(true)
 
-  const eventDate = new Date(event.date)
-  const isPastEvent = eventDate < new Date()
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        const response = await fetch(`/api/events/${params.id}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch event')
+        }
+        const data = await response.json()
+        setEvent(data)
+      } catch (error) {
+        toast.error('Failed to load event details')
+        router.push('/events')
+      } finally {
+        setIsLoadingEvent(false)
+      }
+    }
+
+    fetchEvent()
+  }, [params.id, router])
 
   const handleRegister = async () => {
-    setIsRegistering(true)
+    if (!event) return
+    setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const response = await fetch(`/api/registration/${params.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
-    setIsRegistered(true)
-    setIsRegistering(false)
+      const data = await response.json()
 
-    toast({
-      title: "Registration successful",
-      description: "You have successfully registered for this event.",
-    })
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to register for event')
+      }
+
+      toast.success(data.message || 'Successfully registered for event')
+      router.push("/dashboard/student")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to register for event')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleSave = () => {
-    setIsSaved(!isSaved)
-
-    toast({
-      title: isSaved ? "Event removed" : "Event saved",
-      description: isSaved
-        ? "Event has been removed from your saved events."
-        : "Event has been added to your saved events.",
-    })
+  if (isLoadingEvent) {
+    return (
+      <div className="container py-10">
+        <div className="flex items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        </div>
+      </div>
+    )
   }
 
-  const handleShare = () => {
-    // Copy the current URL to clipboard
-    navigator.clipboard.writeText(window.location.href)
-
-    toast({
-      title: "Link copied",
-      description: "Event link has been copied to clipboard.",
-    })
+  if (!event) {
+    return (
+      <div className="container py-10">
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <h2 className="text-2xl font-bold">Event not found</h2>
+          <Button onClick={() => router.push('/events')}>Back to Events</Button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <Link href="/events" className="text-sm text-gray-500 hover:text-gray-700">
-          ← Back to Events
+    <div className="container py-10">
+      <div className="mb-6 flex items-center">
+        <Link href="/events" className="mr-4 text-primary-600 hover:text-primary-800">
+          <ArrowLeft className="h-5 w-5" />
+          <span className="sr-only">Back to events</span>
         </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Event Details</h1>
+          <p className="text-gray-500">View information and register for this event.</p>
+        </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* Main Content */}
-        <div className="lg:col-span-2">
-          <div className="mb-6 overflow-hidden rounded-lg">
-            <img
-              src={event.image || "/placeholder.svg?height=400&width=800"}
-              alt={event.title}
-              className="h-[400px] w-full object-cover"
-            />
-          </div>
-
-          <div className="mb-8">
-            <div className="mb-4 flex items-center justify-between">
-              <Badge>{event.category}</Badge>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleShare}>
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Share
-                </Button>
-                <Button variant={isSaved ? "default" : "outline"} size="sm" onClick={handleSave}>
-                  <Heart className={`mr-2 h-4 w-4 ${isSaved ? "fill-current" : ""}`} />
-                  {isSaved ? "Saved" : "Save"}
-                </Button>
+      <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
+        <div className="space-y-6">
+          <Card className="overflow-hidden">
+            <div className="relative h-64 w-full md:h-80">
+              <Image
+                src={event.image || "/placeholder.svg?height=400&width=800"}
+                alt={event.title}
+                fill
+                className="object-cover"
+              />
+              <div className="absolute top-4 right-4">
+                <Badge className="bg-primary-600 text-white">{event.category}</Badge>
               </div>
             </div>
-
-            <h1 className="mb-2 text-3xl font-bold">{event.title}</h1>
-            <p className="text-gray-600 dark:text-gray-300">{event.description}</p>
-          </div>
-
-          <div className="mb-8 space-y-6">
-            <h2 className="text-xl font-semibold">Event Details</h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex items-start rounded-lg border p-4">
-                <Calendar className="mr-3 h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-medium">Date</p>
-                  <p className="text-gray-600 dark:text-gray-300">
-                    {eventDate.toLocaleDateString("en-US", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
+            <CardHeader>
+              <CardTitle className="text-2xl text-primary-800">{event.title}</CardTitle>
+              <CardDescription className="flex items-center text-gray-500">
+                <Calendar className="mr-2 h-4 w-4" />
+                {event.date} | {event.time}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-4 text-sm">
+                <div className="flex items-center text-gray-500">
+                  <MapPin className="mr-2 h-4 w-4" />
+                  <span>{event.location}</span>
                 </div>
-              </div>
-
-              <div className="flex items-start rounded-lg border p-4">
-                <Clock className="mr-3 h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-medium">Time</p>
-                  <p className="text-gray-600 dark:text-gray-300">{event.time || "6:00 PM - 9:00 PM"}</p>
+                <div className="flex items-center text-gray-500">
+                  <Users className="mr-2 h-4 w-4" />
+                  <span>
+                    {event.registrations}/{event.capacity} Registered
+                  </span>
                 </div>
-              </div>
-
-              <div className="flex items-start rounded-lg border p-4">
-                <MapPin className="mr-3 h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-medium">Location</p>
-                  <p className="text-gray-600 dark:text-gray-300">{event.location}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start rounded-lg border p-4">
-                <Users className="mr-3 h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-medium">Capacity</p>
-                  <p className="text-gray-600 dark:text-gray-300">
-                    {event.attendees}/{event.capacity} registered
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-8">
-            <h2 className="mb-4 text-xl font-semibold">About This Event</h2>
-            <div className="prose max-w-none dark:prose-invert">
-              <p>
-                Join us for an exciting event at Adama Science and Technology University! This {event.category} event
-                will feature engaging activities, networking opportunities, and valuable insights for all attendees.
-              </p>
-              <p>
-                Whether you're a student, faculty member, or community member, this event offers something for everyone.
-                Don't miss out on this opportunity to connect with others and expand your knowledge.
-              </p>
-              <h3>What to Expect</h3>
-              <ul>
-                <li>Interactive sessions with industry experts</li>
-                <li>Networking opportunities with peers and professionals</li>
-                <li>Hands-on workshops and demonstrations</li>
-                <li>Refreshments and snacks provided</li>
-              </ul>
-              <p>
-                Make sure to bring your student ID and any necessary materials. We look forward to seeing you there!
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <div>
-          <div className="sticky top-8 space-y-6">
-            <div className="rounded-lg border bg-card p-6 shadow-sm">
-              <h3 className="mb-4 text-lg font-semibold">Registration</h3>
-
-              {isPastEvent ? (
-                <div className="rounded-lg bg-gray-100 p-4 text-center dark:bg-gray-800">
-                  <p className="font-medium text-gray-600 dark:text-gray-300">This event has already taken place.</p>
-                </div>
-              ) : isRegistered ? (
-                <div className="space-y-4">
-                  <div className="rounded-lg bg-green-50 p-4 text-center dark:bg-green-900/20">
-                    <p className="font-medium text-green-600 dark:text-green-400">You're registered for this event!</p>
-                  </div>
-                  <Button variant="outline" className="w-full" onClick={() => setIsRegistered(false)}>
-                    Cancel Registration
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-gray-600 dark:text-gray-300">{event.capacity - event.attendees} spots remaining</p>
-                  <Button className="w-full" onClick={handleRegister} disabled={isRegistering}>
-                    {isRegistering ? "Registering..." : "Register Now"}
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-lg border bg-card p-6 shadow-sm">
-              <h3 className="mb-4 text-lg font-semibold">Organizer</h3>
-              <div className="flex items-center">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src="/placeholder.svg?height=40&width=40" alt="Organizer" />
-                  <AvatarFallback>ORG</AvatarFallback>
-                </Avatar>
-                <div className="ml-3">
-                  <p className="font-medium">{event.organizer || "ASTU Events Team"}</p>
-                  <p className="text-sm text-gray-500">Event Organizer</p>
-                </div>
-              </div>
-              <Button variant="outline" className="mt-4 w-full">
-                Contact Organizer
-              </Button>
-            </div>
-
-            <div className="rounded-lg border bg-card p-6 shadow-sm">
-              <h3 className="mb-4 text-lg font-semibold">Attendees</h3>
-              <div className="flex -space-x-2">
-                {Array(5)
-                  .fill(0)
-                  .map((_, i) => (
-                    <Avatar key={i} className="border-2 border-background">
-                      <AvatarImage
-                        src={`/placeholder.svg?height=32&width=32&text=${i + 1}`}
-                        alt={`Attendee ${i + 1}`}
-                      />
-                      <AvatarFallback>{i + 1}</AvatarFallback>
-                    </Avatar>
-                  ))}
-                {event.attendees > 5 && (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-gray-100 text-xs font-medium dark:bg-gray-800">
-                    +{event.attendees - 5}
+                {event.duration && (
+                  <div className="flex items-center text-gray-500">
+                    <Clock className="mr-2 h-4 w-4" />
+                    <span>{event.duration}</span>
                   </div>
                 )}
               </div>
-              <p className="mt-2 text-sm text-gray-500">{event.attendees} people are attending this event</p>
-            </div>
-          </div>
+
+              <Tabs defaultValue="description" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="description">Description</TabsTrigger>
+                  {event.schedule && <TabsTrigger value="schedule">Schedule</TabsTrigger>}
+                  <TabsTrigger value="organizers">Organizers</TabsTrigger>
+                </TabsList>
+                <TabsContent value="description" className="space-y-4 pt-4">
+                  <div className="space-y-4">
+                    <p className="text-gray-600">{event.description}</p>
+                    {event.longDescription && (
+                      <p className="text-gray-600">{event.longDescription}</p>
+                    )}
+                  </div>
+                </TabsContent>
+                {event.schedule && (
+                  <TabsContent value="schedule" className="space-y-4 pt-4">
+                    <div className="space-y-4">
+                      {event.schedule.map((item, index) => (
+                        <div key={index} className="flex border-b border-gray-200 pb-4 last:border-0 last:pb-0">
+                          <div className="mr-4 text-right">
+                            <div className="font-medium text-gray-900">{item.time}</div>
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{item.title}</div>
+                            <div className="text-sm text-gray-500">{item.description}</div>
+                            {item.speaker && (
+                              <div className="mt-1 text-sm text-primary-600">
+                                Speaker: {item.speaker}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
+                )}
+                <TabsContent value="organizers" className="space-y-4 pt-4">
+                  <div className="space-y-4">
+                    {event.organizer && (
+                      <p className="text-gray-600">
+                        <span className="font-medium">Organized by:</span> {event.organizer}
+                      </p>
+                    )}
+                    {event.contactEmail && (
+                      <p className="text-gray-600">
+                        <span className="font-medium">Contact:</span> {event.contactEmail}
+                      </p>
+                    )}
+                    {event.sponsors && event.sponsors.length > 0 && (
+                      <div>
+                        <p className="font-medium text-gray-900">Sponsors:</p>
+                        <ul className="mt-2 list-disc pl-5 text-gray-600">
+                          {event.sponsors.map((sponsor, index) => (
+                            <li key={index}>{sponsor}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Registration</CardTitle>
+              <CardDescription>Secure your spot for this event.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-lg bg-gray-50 p-4">
+                <div className="mb-2 text-sm font-medium text-gray-500">Registration Status</div>
+                <div className="text-lg font-bold text-green-600">
+                  {event.isRegistered ? (
+                    <span className="capitalize">{event.registrationStatus?.toLowerCase()}</span>
+                  ) : (
+                    "Open"
+                  )}
+                </div>
+                {event.registrationDeadline && (
+                  <div className="mt-1 text-xs text-gray-500">
+                    Closes on {event.registrationDeadline}
+                  </div>
+                )}
+              </div>
+              <div className="rounded-lg bg-gray-50 p-4">
+                <div className="mb-2 text-sm font-medium text-gray-500">Available Spots</div>
+                <div className="text-lg font-bold text-gray-900">
+                  {event.capacity - event.registrations} / {event.capacity}
+                </div>
+                <div className="mt-1 text-xs text-gray-500">
+                  {Math.round(((event.capacity - event.registrations) / event.capacity) * 100)}% available
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex-col space-y-2">
+              <Button
+                className="w-full bg-primary-600 hover:bg-primary-700 text-white"
+                onClick={handleRegister}
+                disabled={isLoading || event.isRegistered}
+              >
+                {isLoading
+                  ? "Processing..."
+                  : event.isRegistered
+                  ? "Already Registered"
+                  : "Register Now"}
+              </Button>
+              <Button variant="outline" className="w-full border-gray-200">
+                <Share className="mr-2 h-4 w-4" />
+                Share Event
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Location</CardTitle>
+              <CardDescription>Event venue details.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="relative h-48 w-full overflow-hidden rounded-lg bg-gray-100">
+                <Image
+                  src="/placeholder.svg?height=200&width=400"
+                  alt="Event location map"
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="font-medium text-gray-900">{event.location}</div>
+                {event.address && <div className="text-sm text-gray-500">{event.address}</div>}
+                <Button
+                  variant="outline"
+                  className="mt-2 w-full border-primary-600 text-primary-600 hover:bg-primary-50"
+                >
+                  Get Directions
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

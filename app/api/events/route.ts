@@ -180,6 +180,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+    const userRole = session?.user?.role;
     // Extract filter parameters
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -191,21 +194,27 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
-
-    console.log({
-      startDate,
-      endDate,
-      category,
-      eventType,
-      status,
-      search,
-      sort,
-      
-    });
+    const registeredBy = searchParams.get('registeredBy'); // <- NEW
     
     // Build filter conditions
     const where: any = {};
 
+    if (userRole === 'EVENT_ORGANIZER' && userId) {
+      where.createdById = userId;
+    }
+    
+    // Exclude events that the user has already registered for
+    if (userId) {
+      where.NOT = {
+        registrations: {
+          some: {
+            userId: userId,
+            status: 'CONFIRMED'
+          }
+        }
+      };
+    }
+    
     if (startDate || endDate) {
       where.date = {};
       if (startDate) {
@@ -215,7 +224,7 @@ export async function GET(request: Request) {
         where.date.lte = new Date(endDate);
       }
     }
-
+    
     if (category.length > 0) {
       where.category = {
         in: category.map(cat => cat.trim().toUpperCase())
@@ -227,15 +236,35 @@ export async function GET(request: Request) {
     }
 
     if (status.length > 0) {
-      where.approvalStatus = {
-        in: status.map(s => s.trim().toUpperCase())
-      };
+      if (status.includes('registered')) {
+        where.registrations = {
+          some: {
+            userId: userId,
+            status: 'CONFIRMED'
+          }
+        };
+      } else {
+        where.approvalStatus = {
+          in: status.map(s => s.trim().toUpperCase())
+        };
+      }
+    } else {
+      // Default to only approved events if no status filter is provided
+      where.approvalStatus = 'APPROVED';
     }
-
+    
     if (search) {
       where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } }
+        { 
+          title: { 
+            contains: search.toLowerCase()
+          } 
+        },
+        { 
+          description: { 
+            contains: search.toLowerCase()
+          } 
+        }
       ];
     }
 
@@ -256,6 +285,10 @@ export async function GET(request: Request) {
         where.date = { lt: new Date() };
         orderBy = { date: 'desc' };
         break;
+      case 'waitlisted':
+        where.approvalStatus = 'WAITLISTED';
+        orderBy = { date: 'desc' };
+        break;
       case 'attendees':
         orderBy = { registrations: { _count: 'desc' } };
         break;
@@ -266,39 +299,57 @@ export async function GET(request: Request) {
       default:
         orderBy = { createdAt: 'desc' };
     }
-
-    // Get total count for pagination
-    const total = await prisma.event.count({ where });
-
-    // Get paginated events
-    const events = await prisma.event.findMany({
-      where,
-      orderBy,
-      include: {
-        _count: {
-          select: {
-            registrations: true,
+    if (registeredBy) {
+      where.registrations = {
+        some: {
+          userId: registeredBy
+        }
+      };
+    }
+    // Fetch events with pagination and include organizer data
+    const [events, total] = await Promise.all([
+      prisma.event.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
           },
+          _count: {
+            select: {
+              registrations: true
+            }
+          }
         },
-        createdBy: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
+      }),
+      prisma.event.count({ where }),
+    ]);
+
+    // Transform the response to match the expected format
+    const transformedEvents = events.map(event => ({
+      ...event,
+      organizer: {
+        id: event.createdBy.id,
+        name: event.createdBy.name,
+        avatar: event.createdBy.image,
       },
-      skip,
-      take: limit,
-    });
+      _count: {
+        registrations: event._count.registrations
+      }
+    }));
 
     return NextResponse.json({
-      events,
+      events: transformedEvents,
       total,
       page,
-      limit,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     });
-
   } catch (error) {
     console.error('Error fetching events:', error);
     return NextResponse.json(

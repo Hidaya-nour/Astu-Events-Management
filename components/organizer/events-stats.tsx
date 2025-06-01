@@ -5,7 +5,6 @@ interface Stats {
   totalEvents: number
   upcomingEvents: number
   totalAttendees: number
-  approvedEvents: number
 }
 
 interface EventsStatsProps {
@@ -35,17 +34,11 @@ export function EventsStats({ stats }: EventsStatsProps) {
       icon: Users,
       color: "bg-purple-100 text-purple-700",
     },
-    {
-      title: "Approved Events",
-      value: stats.approvedEvents.toString(),
-      description: "Ready to go",
-      icon: CheckCircle,
-      color: "bg-amber-100 text-amber-700",
-    },
+   
   ]
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {statsData.map((stat, index) => (
         <Card key={index}>
           <CardContent className="p-6">

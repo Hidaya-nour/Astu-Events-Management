@@ -39,7 +39,7 @@ export default function CreateEventPage() {
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="/dashboard/organizer/dashboard">
+                <Link href="/organizer/dashboard">
                   <Home className="h-4 w-4 mr-1" />
                   Dashboard
                 </Link>
@@ -50,7 +50,7 @@ export default function CreateEventPage() {
             </BreadcrumbSeparator>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="/dashboard/organizer/events">Events</Link>
+                <Link href="/organizer/events">Events</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator>

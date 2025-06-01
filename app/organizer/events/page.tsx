@@ -8,9 +8,68 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Search, Plus, Download } from "lucide-react"
+import { Search, Plus, Download, Filter, PlusCircle } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+// import { useRouter } from "next/router"
+import { useRouter, useSearchParams } from "next/navigation"
+import { AdminEventsTable } from "@/components/admin/admin-events-table"
+import { AdminEventsFilter } from "@/components/admin/admin-events-filter"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AdminEventsCalendarView } from "@/components/admin/admin-events-calendar-view"
+import { AdminEventsStats } from "@/components/admin/admin-events-stats"
+import { AdminPendingApprovals } from "@/components/admin/admin-pending-approval"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import Link from "next/link"
 
+interface EventDistribution {
+  category: string
+  count: number
+}
+
+interface AdminStats {
+  totalEvents: number
+  pendingApprovals: number
+  totalUsers: number
+  totalOrganizations: number
+  eventDistribution: EventDistribution[]
+}
+
+interface FilterState {
+  status: {
+    approved: boolean
+    pending: boolean
+    rejected: boolean
+    cancelled: boolean
+  }
+  categories: {
+    TECHNOLOGY: boolean
+    WORKSHOP: boolean
+    COMPETITION: boolean
+    CAREER: boolean
+    ACADEMIC: boolean
+    CULTURAL: boolean
+    SPORTS: boolean
+    SEMINAR: boolean
+    CONFERENCE: boolean
+  }
+  organizer: string
+  timePeriod: string
+  dateRange: {
+    from?: Date
+    to?: Date
+  }
+  featured: {
+    featured: boolean
+    notFeatured: boolean
+  }
+}
 interface Event {
   id: string
   title: string
@@ -22,15 +81,177 @@ interface Event {
   status: string
   capacity: number
   currentAttendees: number
+  image?: string
+  images?: string[]
 }
 
 export default function OrganizerEventsPage() {
   const [events, setEvents] = useState<Event[]>([])
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [sortBy, setSortBy] = useState("date")
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [sortBy, setSortBy] = useState("newest")
+  const [filters, setFilters] = useState<FilterState>({
+    status: {
+      approved: true,
+      pending: true,
+      rejected: false,
+      cancelled: false
+    },
+    categories: {
+      TECHNOLOGY: true,
+      WORKSHOP: true,
+      COMPETITION: true,
+      CAREER: true,
+      ACADEMIC: true,
+      CULTURAL: true,
+      SPORTS: true,
+      SEMINAR: true,
+      CONFERENCE: true
+    },
+    organizer: 'all',
+    timePeriod: 'all',
+    dateRange: {
+      from: undefined,
+      to: undefined
+    },
+    featured: {
+      featured: false,
+      notFeatured: false
+    }
+  })
+
+  // Update URL when filters change
+  const updateURL = (newFilters: FilterState) => {
+    const params = new URLSearchParams(searchParams.toString())
+    
+    // Handle status filters
+    const statusFilters = Object.entries(newFilters.status)
+      .filter(([_, value]) => value)
+      .map(([key]) => key.toUpperCase())
+    if (statusFilters.length > 0) {
+      params.set('status', statusFilters.join(','))
+    } else {
+      params.delete('status')
+    }
+
+    // Handle category filters
+    const categoryFilters = Object.entries(newFilters.categories)
+      .filter(([_, value]) => value)
+      .map(([key]) => key.toUpperCase())
+    if (categoryFilters.length > 0) {
+      params.set('category', categoryFilters.join(','))
+    } else {
+      params.delete('category')
+    }
+
+    // Handle time period and date range
+    if (newFilters.timePeriod === 'custom' && newFilters.dateRange.from) {
+      params.set('startDate', newFilters.dateRange.from.toISOString())
+      if (newFilters.dateRange.to) {
+        params.set('endDate', newFilters.dateRange.to.toISOString())
+      } else {
+        params.delete('endDate')
+      }
+    } else if (newFilters.timePeriod === 'upcoming') {
+      params.set('sort', 'upcoming')
+      params.delete('startDate')
+      params.delete('endDate')
+    } else if (newFilters.timePeriod === 'past') {
+      params.set('sort', 'past')
+      params.delete('startDate')
+      params.delete('endDate')
+    } else {
+      params.delete('startDate')
+      params.delete('endDate')
+    }
+
+    // Update sort if not set by time period
+    if (newFilters.timePeriod !== 'upcoming' && newFilters.timePeriod !== 'past') {
+      params.set('sort', sortBy)
+    }
+
+    // Update URL without refreshing the page
+    router.push(`?${params.toString()}`, { scroll: false })
+  }
+
+  const handleFilterChange = (newFilters: FilterState) => {
+    setFilters(newFilters)
+    updateURL(newFilters)
+  }
+
+  // Initialize filters from URL on component mount
+  useEffect(() => {
+    const statusParam = searchParams.get('status')?.toLowerCase().split(',') || []
+    const categoryParam = searchParams.get('category')?.toLowerCase().split(',') || []
+    const sortParam = searchParams.get('sort') || 'newest'
+    const timePeriodParam = searchParams.get('timePeriod') || 'all'
+    const startDateParam = searchParams.get('startDate')
+    const endDateParam = searchParams.get('endDate')
+
+    setFilters(prev => ({
+      ...prev,
+      status: {
+        approved: statusParam.includes('approved'),
+        pending: statusParam.includes('pending'),
+        rejected: statusParam.includes('rejected'),
+        cancelled: statusParam.includes('cancelled')
+      },
+      categories: {
+        TECHNOLOGY: categoryParam.includes('technology'),
+        WORKSHOP: categoryParam.includes('workshop'),
+        COMPETITION: categoryParam.includes('competition'),
+        CAREER: categoryParam.includes('career'),
+        ACADEMIC: categoryParam.includes('academic'),
+        CULTURAL: categoryParam.includes('cultural'),
+        SPORTS: categoryParam.includes('sports'),
+        SEMINAR: categoryParam.includes('seminar'),
+        CONFERENCE: categoryParam.includes('conference')
+      },
+      timePeriod: timePeriodParam,
+      dateRange: {
+        from: startDateParam ? new Date(startDateParam) : undefined,
+        to: endDateParam ? new Date(endDateParam) : undefined
+      }
+    }))
+
+    setSortBy(sortParam)
+  }, [searchParams])
+
+  // useEffect(() => {
+  //   const fetchStats = async () => {
+  //     try {
+  //       const response = await fetch('/api/events/admin/stats', {
+  //         credentials: 'include'
+  //       })
+  //       if (!response.ok) {
+  //         throw new Error(`Failed to fetch stats: ${response.status}`)
+  //       }
+  //       const data = await response.json()
+  //       setStats(data)
+  //     } catch (err) {
+  //       setError(err instanceof Error ? err.message : 'Failed to fetch stats')
+  //     } finally {
+  //       setLoading(false)
+  //     }
+  //   }
+
+  //   fetchStats()
+  // }, [])
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value)
+  }
+
+  const handleSortChange = (value: string) => {
+    setSortBy(value)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('sort', value)
+    router.push(`?${params.toString()}`, { scroll: false })
+  }
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -40,8 +261,30 @@ export default function OrganizerEventsPage() {
           throw new Error("Failed to fetch events")
         }
         const data = await response.json()
-        setEvents(data)
-        setFilteredEvents(data)
+        const transformedEvents = data.events.map((event: any) => {
+          let imageUrl = "/placeholder.svg";
+          let images = [];
+
+          try {
+            if (event.images) {
+              const parsedImages = JSON.parse(event.images);
+              if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+                images = parsedImages;
+                imageUrl = parsedImages[0];
+              }
+            }
+          } catch (e) {
+            console.warn("Could not parse images", e);
+          }
+
+          return {
+            ...event,
+            image: imageUrl,
+            images: images
+          };
+        });
+        setEvents(transformedEvents)
+        setFilteredEvents(transformedEvents)
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred")
       } finally {
@@ -89,7 +332,7 @@ export default function OrganizerEventsPage() {
   if (loading) {
     return (
       <DashboardLayout appName="ASTU Events">
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center allign-center justify-center h-full">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
       </DashboardLayout>
@@ -107,106 +350,111 @@ export default function OrganizerEventsPage() {
     )
   }
 
-  if (events.length === 0) {
-    return (
-      <DashboardLayout appName="ASTU Events">
-        <div className="text-center py-10">
-          <h2 className="text-2xl font-semibold mb-2">No Events Found</h2>
-          <p className="text-gray-500 mb-4">You haven't created any events yet.</p>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Event
-          </Button>
-        </div>
-      </DashboardLayout>
-    )
-  }
-
   return (
-    <DashboardLayout appName="ASTU Events">
+      <DashboardLayout
+      appName="ASTU Events"
+      appLogo="/placeholder.svg?height=32&width=32"
+      helpText="Need Assistance?"
+      helpLink="/organizer/support"
+      >
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Events</h1>
-          <div className="flex items-center space-x-4">
-            <Button variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Event
-            </Button>
-          </div>
-        </div>
+        <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Event Management</h1>
+              <p className="text-muted-foreground mt-1">Oversee, approve, and manage all events in the system.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+              <Link href="/organizer/events/create">
+                <Button>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Create Event
+                </Button>
+              </Link>
+            </div>
+        </div>   
+        <EventsStats stats={stats} />       
+        <div className="flex flex-col md:flex-row gap-4 items-start">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="md:hidden mb-2">
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left">
+              <SheetHeader>
+                <SheetTitle>Filters</SheetTitle>
+                <SheetDescription>Filter events by various criteria</SheetDescription>
+              </SheetHeader>
+              <div className="py-4">
+                <AdminEventsFilter onFilterChange={handleFilterChange} />
+              </div>
+            </SheetContent>
+          </Sheet>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="md:col-span-1">
+          <Card className="w-full md:w-64 shrink-0 hidden md:block">
             <CardHeader>
               <CardTitle>Filters</CardTitle>
-              <CardDescription>Filter events by various criteria</CardDescription>
+              <CardDescription>Filter events</CardDescription>
             </CardHeader>
             <CardContent>
-              <EventsFilter events={events} onFilterChange={setFilteredEvents} />
+              <AdminEventsFilter onFilterChange={handleFilterChange} />
             </CardContent>
           </Card>
 
-          <div className="md:col-span-3 space-y-6">
-            <div className="flex items-center space-x-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search events..."
+          <div className="flex-1 space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-between">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  type="search" 
+                  placeholder="Search events..." 
+                  className="pl-8 w-full"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  onChange={handleSearch}
                 />
               </div>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date">Date</SelectItem>
-                  <SelectItem value="title">Title</SelectItem>
-                  <SelectItem value="location">Location</SelectItem>
-                  <SelectItem value="category">Category</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={sortBy} onValueChange={handleSortChange}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest first</SelectItem>
+                    <SelectItem value="oldest">Oldest first</SelectItem>
+                    <SelectItem value="upcoming">Upcoming</SelectItem>
+                    <SelectItem value="past">Past events</SelectItem>
+                    <SelectItem value="attendees">Most attendees</SelectItem>
+                    <SelectItem value="pending">Pending approval</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <EventsStats stats={stats} />
-            <div className="grid gap-4">
-              {filteredEvents.map((event) => (
-                <Card key={event.id}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold">{event.title}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(event.date).toLocaleDateString()} • {event.startTime} - {event.endTime}
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {event.location} • {event.category}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          event.status === "APPROVED" ? "bg-green-100 text-green-700" :
-                          event.status === "PENDING" ? "bg-yellow-100 text-yellow-700" :
-                          event.status === "REJECTED" ? "bg-red-100 text-red-700" :
-                          "bg-gray-100 text-gray-700"
-                        }`}>
-                          {event.status}
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          {event.currentAttendees}/{event.capacity} attendees
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <Tabs defaultValue="list" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="list">List View</TabsTrigger>
+                <TabsTrigger value="calendar">Calendar View</TabsTrigger>
+              </TabsList>
+              <TabsContent value="list" className="space-y-4">
+                <AdminEventsTable 
+                  searchQuery={searchQuery} 
+                  sortBy={sortBy}
+                  filters={filters}
+                />
+              </TabsContent>
+              <TabsContent value="calendar" className="space-y-4">
+                <AdminEventsCalendarView 
+                  searchQuery={searchQuery} 
+                  sortBy={sortBy}
+                  filters={filters}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>

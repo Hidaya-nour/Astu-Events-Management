@@ -2,14 +2,32 @@ import { NextResponse } from 'next/server'
 import { v2 as cloudinary } from 'cloudinary'
 
 // Configure Cloudinary
+const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+const apiKey = process.env.CLOUDINARY_API_KEY
+const apiSecret = process.env.CLOUDINARY_API_SECRET
+
+// Validate Cloudinary configuration
+if (!cloudName || !apiKey || !apiSecret) {
+  console.error('Missing Cloudinary configuration. Please check your environment variables.')
+  throw new Error('Cloudinary configuration is missing')
+}
+
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: cloudName,
+  api_key: apiKey,
+  api_secret: apiSecret,
 })
 
 export async function POST(request: Request) {
   try {
+    // Validate Cloudinary configuration at runtime
+    if (!cloudName || !apiKey || !apiSecret) {
+      return NextResponse.json(
+        { error: 'Cloudinary configuration is missing. Please check your environment variables.' },
+        { status: 500 }
+      )
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
     
@@ -43,16 +61,24 @@ export async function POST(request: Request) {
     const base64Image = buffer.toString('base64')
     const dataURI = `data:${file.type};base64,${base64Image}`
 
-    // Upload to Cloudinary
+    // Upload to Cloudinary with better error handling
     const result = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload(dataURI, {
         folder: 'astu-events',
         resource_type: 'auto',
       }, (error, result) => {
-        if (error) reject(error)
-        else resolve(result)
+        if (error) {
+          console.error('Cloudinary upload error:', error)
+          reject(new Error(error.message || 'Failed to upload to Cloudinary'))
+        } else {
+          resolve(result)
+        }
       })
     })
+
+    if (!result || !(result as any).secure_url) {
+      throw new Error('Failed to get secure URL from Cloudinary')
+    }
 
     // Return the secure URL of the uploaded file
     return NextResponse.json({
@@ -61,7 +87,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error uploading file:', error)
     return NextResponse.json(
-      { error: 'Error uploading file' },
+      { error: error.message || 'Error uploading file' },
       { status: 500 }
     )
   }
