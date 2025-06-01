@@ -128,13 +128,12 @@ export default function EventDetailsPage() {
     helpfulPercentage: number
   } | null>(null)
   const [feedback, setFeedback] = useState<Array<{
-    id: string
-    rating: number
-    feedback: string
-    email?: string
+    id: string,
+    rating: number,
+    feedback: string,
+    email?: string,
     wasHelpful: boolean
-    createdAt: Date
-  ([])
+  }>>([])
 
   const fetchFeedback = async () => {
     try {
