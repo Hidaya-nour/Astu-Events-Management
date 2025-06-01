@@ -425,8 +425,13 @@ export default function EventsPage() {
                 <Card 
                   key={event.id} 
                   className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => router.push(`/student/events/${event.id}`)}
-                >
+                  onClick={(e) => {
+                    // Don't navigate if clicking the register button
+                    if ((e.target as HTMLElement).closest('button')) {
+                      return;
+                    }
+                    router.push(`/student/events/${event.id}`);
+                  }}                >
                   <EnhancedEventCard
                     event={event}
                     onRegister={handleRegister}
@@ -452,8 +457,14 @@ export default function EventsPage() {
                 <Card 
                   key={event.id} 
                   className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => router.push(`/student/events/${event.id}`)}
-                >
+                  onClick={(e) => {
+                    // Don't navigate if clicking the register button
+                    if ((e.target as HTMLElement).closest('button')) {
+                      return;
+                    }
+                    router.push(`/student/events/${event.id}`);
+                  }}
+>
                   <EnhancedEventCard
                     event={event}
                     onRegister={handleRegister}
@@ -479,7 +490,14 @@ export default function EventsPage() {
                 <Card 
                   key={event.id} 
                   className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => router.push(`/student/events/${event.id}`)}
+                  onClick={(e) => {
+                    // Don't navigate if clicking the register button
+                    if ((e.target as HTMLElement).closest('button')) {
+                      return;
+                    }
+                    router.push(`/student/events/${event.id}`);
+                  }}
+
                 >
                   <EnhancedEventCard
                     event={event}
@@ -506,8 +524,14 @@ export default function EventsPage() {
                 <Card 
                   key={event.id} 
                   className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => router.push(`/student/events/${event.id}`)}
-                >
+                  onClick={(e) => {
+                    // Don't navigate if clicking the register button
+                    if ((e.target as HTMLElement).closest('button')) {
+                      return;
+                    }
+                    router.push(`/student/events/${event.id}`);
+                  }}
+>
                   <EnhancedEventCard
                     event={event}
                     onRegister={handleRegister}

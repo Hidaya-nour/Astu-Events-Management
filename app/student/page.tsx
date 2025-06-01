@@ -36,7 +36,10 @@ interface Event {
     registrations: number
   }
   isRegistered?: boolean
+  registrationStatus?: "PENDING" | "CONFIRMED" | "CANCELLED" | "WAITLISTED"
   isFavorite?: boolean
+  status?: string
+  approvalStatus?: "APPROVED" | "REJECTED" | "PENDING"
 }
 
 // Add type for the session user
@@ -588,7 +591,8 @@ export default function StudentDashboard() {
                       <EventCard 
                         event={{
                           ...event,
-                          status: event.status || "PENDING"
+                          status: event.approvalStatus === "APPROVED" ? "APPROVED" : 
+                                  event.approvalStatus === "REJECTED" ? "REJECTED" : "PENDING"
                         }}
                         showStatus={true}
                       />
