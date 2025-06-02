@@ -1,5 +1,5 @@
-const { PrismaClient } = require('@prisma/client')
-const { hash } = require('bcryptjs')
+import { PrismaClient } from '@prisma/client'
+import { hash } from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
@@ -45,10 +45,10 @@ async function main() {
 
   // Event categories and types
   const categories = ['Technical Workshop', 'Career Fair', 'Seminar', 'Competition', 'Cultural Event', 'Sports']
-  const eventTypes = ['IN_PERSON', 'ONLINE', 'HYBRID']
+  const eventTypes = ['IN_PERSON', 'ONLINE', 'HYBRID'] as const
   const locations = ['Main Auditorium', 'Tech Hub', 'Sports Complex', 'Innovation Center', 'Library Hall', 'Conference Room']
   const venues = ['Room 101', 'Room 202', 'Main Hall', 'Lab 1', 'Meeting Room A', 'Outdoor Field']
-  const registrationStatuses = ['PENDING', 'CONFIRMED', 'WAITLISTED']
+  const registrationStatuses = ['PENDING', 'CONFIRMED', 'WAITLISTED'] as const
 
   // Create events
   const events = await Promise.all(

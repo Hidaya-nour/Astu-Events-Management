@@ -20,7 +20,7 @@ interface EnhancedEventCardProps {
     venue?: string
     organizer: string
     organizerAvatar?: string
-    attendees: number
+    attendees: number | number[]
     maxAttendees?: number
     category: string
     department?: string
@@ -151,7 +151,7 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
               <Users className="h-4 w-4" />
               <span>
-                {event.attendees}
+                {Array.isArray(event.attendees) ? event.attendees.length : 0}
                 {event.maxAttendees ? `/${event.maxAttendees}` : ""}
               </span>
             </div>
