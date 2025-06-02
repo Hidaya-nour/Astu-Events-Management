@@ -27,18 +27,15 @@ interface Event {
   maxAttendees?: number
   category: string
   image: string
-  department?: string
-  year?: number
-  registrationStatus: "REGISTERED" | "NOT_REGISTERED" | "WAITLISTED" | "PENDING" | "EXPIRED"
+  registrationStatus: "REGISTERED" | "WAITLISTED" | "PENDING" | "NOT_REGISTERED" | "EXPIRED" | "CANCELLED"
   registrationDeadline?: string
   eventType: "IN_PERSON" | "ONLINE" | "HYBRID"
-  relevance?: ("DEPARTMENT" | "YEAR" | "RECOMMENDED")[]
+  relevance?: Array<"DEPARTMENT" | "YEAR" | "RECOMMENDED">
   isFavorite?: boolean
-  images: string[]
   status?: "PENDING" | "APPROVED" | "REJECTED"
-  startTime?: string
-  capacity?: number
-  currentAttendees?: number
+  approvalStatus?: "APPROVED" | "REJECTED" | "PENDING"
+  department?: string
+  year?: number
 }
 
 interface Filters {
@@ -54,15 +51,15 @@ interface Filters {
 
 export default function EventsPage() {
   const { data: session, status } = useSession()
-  const [filters, setFilters] = useState<Filters>({})
-  const [registeredEvents, setRegisteredEvents] = useState<Event[]>([])
-  const [departmentEvents, setDepartmentEvents] = useState<Event[]>([])
-  const [organizedEvents, setOrganizedEvents] = useState<Event[]>([])
-  const [activeTab, setActiveTab] = useState("all")
+  const router = useRouter()
   const [events, setEvents] = useState<Event[]>([])
+  const [registeredEvents, setRegisteredEvents] = useState<Event[]>([])
+  const [organizedEvents, setOrganizedEvents] = useState<Event[]>([])
+  const [recommendedEvents, setRecommendedEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
+  const [activeTab, setActiveTab] = useState("all")
+  const [filters, setFilters] = useState<Filters>({})
 
   // Fetch all events
   const fetchEvents = async () => {
@@ -70,7 +67,7 @@ export default function EventsPage() {
       const response = await fetch('/api/events')
       if (!response.ok) throw new Error('Failed to fetch events')
       const data = await response.json()
-      // Transform the events data to ensure organizer is a string
+      // Transform the events data to match EnhancedEventCard interface
       const transformedEvents = data.events.map((event: any) => {
         let imageUrl = "/placeholder.svg";
         let images = [];
@@ -91,7 +88,14 @@ export default function EventsPage() {
           ...event,
           image: imageUrl,
           images: images,
-          organizer: typeof event.organizer === 'object' ? event.organizer.name : event.organizer
+          time: event.startTime || "TBD",
+          attendees: event._count?.registrations || 0,
+          maxAttendees: event.capacity,
+          organizer: typeof event.organizer === 'object' ? event.organizer.name : event.organizer,
+          organizerAvatar: typeof event.organizer === 'object' ? event.organizer.avatar : undefined,
+          registrationStatus: event.registrationStatus || "NOT_REGISTERED",
+          eventType: event.eventType || "IN_PERSON",
+          relevance: event.relevance || []
         }
       })
       setEvents(transformedEvents)
@@ -115,47 +119,42 @@ export default function EventsPage() {
       if (!response.ok) throw new Error('Failed to fetch registered events')
       const data = await response.json()
       
-      // Transform registered events to match the Event interface
-      const transformedRegisteredEvents = data.map((event: any) => ({
+      const transformedEvents = data.map((event: any) => ({
         id: event.id,
         title: event.title,
-        description: event.description,
+        description: event.description || "",
         date: event.date,
-        time: event.time || "TBD",
+        time: event.startTime || "TBD",
+        endTime: event.endTime,
         location: event.location,
         venue: event.venue,
-        organizer: event.organizer,
-        organizerAvatar: event.organizerAvatar,
-        attendees: event.attendees || 0,
-        maxAttendees: event.maxAttendees,
+        organizer: event.createdBy?.name || "Unknown Organizer",
+        organizerAvatar: event.createdBy?.image || "/placeholder.svg",
+        attendees: event._count?.registrations || 0,
+        maxAttendees: event.capacity || undefined,
         category: event.category,
-        image: event.image || "/placeholder.svg",
+        image: event.images ? JSON.parse(event.images)[0] : "/placeholder.svg",
+        registrationStatus: "REGISTERED",
+        isFavorite: event.isFavorite || false,
+        status: event.status,
         department: event.department,
         year: event.year,
-        registrationStatus: event.status,
-        registrationDeadline: event.registrationDeadline,
         eventType: event.eventType || "IN_PERSON",
-        relevance: event.tags?.map((tag: string) => tag.toUpperCase()) || [],
-        isFavorite: event.isFavorite || false,
-        images: event.images || [],
-        status: event.status,
-        startTime: event.startTime,
-        capacity: event.capacity,
-        currentAttendees: event.currentAttendees
+        relevance: event.relevance || []
       }))
 
-      // Update the events state with registered events
-      setEvents(prevEvents => {
-        // Create a map of existing events for quick lookup
-        const eventMap = new Map(prevEvents.map(event => [event.id, event]))
-        
-        // Update or add registered events
-        transformedRegisteredEvents.forEach(event => {
-          eventMap.set(event.id, event)
-        })
-        setRegisteredEvents(transformedRegisteredEvents)
-        return Array.from(eventMap.values())
-      })
+      setRegisteredEvents(transformedEvents)
+      
+      // Update events state with registration status
+      setEvents(prevEvents => 
+        prevEvents.map(event => ({
+          ...event,
+          isRegistered: transformedEvents.some(regEvent => regEvent.id === event.id),
+          registrationStatus: transformedEvents.some(regEvent => regEvent.id === event.id) 
+            ? "REGISTERED" 
+            : "NOT_REGISTERED"
+        }))
+      )
     } catch (err) {
       setError(err.message)
       toast.error("Failed to fetch registered events")
@@ -168,17 +167,32 @@ export default function EventsPage() {
       const response = await fetch('/api/events/organizer')
       if (!response.ok) throw new Error('Failed to fetch organized events')
       const data = await response.json()
+      
       const transformedEvents = data.map((event: any) => ({
-        ...event,
-        registrationStatus: event.status === "APPROVED" ? "REGISTERED" : "PENDING",
-        time: event.startTime,
-        maxAttendees: event.capacity,
-        attendees: event.currentAttendees,
-        image: "/placeholder.svg",
-        relevance: [],
+        id: event.id,
+        title: event.title,
+        description: event.description || "",
+        date: event.date,
+        time: event.startTime || "TBD",
+        endTime: event.endTime,
+        location: event.location,
+        venue: event.venue || "",
+        organizer: event.createdBy?.name || "Unknown Organizer",
+        organizerAvatar: event.createdBy?.image || "/placeholder.svg",
+        attendees: event._count?.registrations || 0,
+        maxAttendees: event.capacity || undefined,
+        category: event.category,
+        image: event.images ? JSON.parse(event.images)[0] : "/placeholder.svg",
+        registrationStatus: "NOT_REGISTERED",
+        status: event.status,
+        approvalStatus: event.approvalStatus || "PENDING",
         isFavorite: false,
+        department: event.department,
+        year: event.year,
         eventType: event.eventType || "IN_PERSON",
+        relevance: []
       }))
+      
       setOrganizedEvents(transformedEvents)
     } catch (err) {
       setError(err.message)
@@ -383,9 +397,22 @@ export default function EventsPage() {
     const loadData = async () => {
       setLoading(true)
       try {
-        await Promise.all([fetchEvents(), fetchRegisteredEvents(), fetchOrganizedEvents()])
+        await Promise.all([
+          fetchEvents(),
+          fetchRegisteredEvents(),
+          fetchOrganizedEvents()
+        ])
+        
+        // Set recommended events based on relevance
+        setRecommendedEvents(
+          events.filter(event => 
+            event.relevance?.includes("RECOMMENDED") || 
+            event.department === session?.user?.department
+          )
+        )
       } catch (err) {
         console.error('Error loading data:', err)
+        setError(err.message)
       } finally {
         setLoading(false)
       }
@@ -395,21 +422,6 @@ export default function EventsPage() {
       loadData()
     }
   }, [status])
-
-  const recommendedEvents = events.filter((event) => event.relevance?.includes("RECOMMENDED"))
-
-  // Update department events when events or session changes
-  useEffect(() => {
-    if (session?.user?.department) {
-      setDepartmentEvents(
-        events.filter(
-          (event) =>
-            event.department === session.user.department ||
-            event.relevance?.includes("DEPARTMENT")
-        )
-      )
-    }
-  }, [events, session?.user?.department])
 
   if (status === 'loading') {
     return (
@@ -466,7 +478,6 @@ export default function EventsPage() {
               <TabsTrigger value="registered">My Registrations ({registeredEvents.length})</TabsTrigger>
               <TabsTrigger value="organized">Created by me ({organizedEvents.length})</TabsTrigger>
               <TabsTrigger value="recommended">Recommended ({recommendedEvents.length})</TabsTrigger>
-              <TabsTrigger value="department">My Department ({departmentEvents.length})</TabsTrigger>
             </TabsList>
 
             <EventFilters
@@ -509,12 +520,11 @@ export default function EventsPage() {
 
             <TabsContent value="registered" className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredEvents.map((event) => (
+                {registeredEvents.map((event) => (
                   <Card 
                     key={event.id} 
                     className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
                     onClick={(e) => {
-                      // Don't navigate if clicking the register button
                       if ((e.target as HTMLElement).closest('button')) {
                         return;
                       }
@@ -530,7 +540,7 @@ export default function EventsPage() {
                   </Card>
                 ))}
               </div>
-              {filteredEvents.length === 0 && (
+              {registeredEvents.length === 0 && (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground">You haven't registered for any events yet</p>
                   <Button className="mt-4" onClick={() => setActiveTab("all")}>
@@ -554,18 +564,9 @@ export default function EventsPage() {
                     }}
                   >
                     <EnhancedEventCard
-                      event={{
-                        ...event,
-                        registrationStatus: event.status === "APPROVED" ? "REGISTERED" : "PENDING",
-                        time: event.startTime,
-                        maxAttendees: event.capacity,
-                        attendees: event.currentAttendees,
-                        image: "/placeholder.svg",
-                        relevance: [],
-                      }}
-                      onRegister={handleRegister}
-                      onUnregister={handleUnregister}
-                      onFavorite={handleFavorite}
+                      event={event}
+                      showStatus={true}
+                      statusText={event.approvalStatus}
                     />
                   </Card>
                 ))}
@@ -582,12 +583,11 @@ export default function EventsPage() {
 
             <TabsContent value="recommended" className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredEvents.map((event) => (
+                {recommendedEvents.map((event) => (
                   <Card 
                     key={event.id} 
                     className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
                     onClick={(e) => {
-                      // Don't navigate if clicking the register button
                       if ((e.target as HTMLElement).closest('button')) {
                         return;
                       }
@@ -603,44 +603,11 @@ export default function EventsPage() {
                   </Card>
                 ))}
               </div>
-              {filteredEvents.length === 0 && (
+              {recommendedEvents.length === 0 && (
                 <div className="text-center py-12">
-                  <p className="text-muted-foreground">No recommended events match your current filters</p>
-                  <Button variant="outline" className="mt-4" onClick={() => setFilters({})}>
-                    Clear Filters
-                  </Button>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="department" className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredEvents.map((event) => (
-                  <Card 
-                    key={event.id} 
-                    className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={(e) => {
-                      // Don't navigate if clicking the register button
-                      if ((e.target as HTMLElement).closest('button')) {
-                        return;
-                      }
-                      router.push(`/student/events/${event.id}`);
-                    }}
-                  >
-                    <EnhancedEventCard
-                      event={event}
-                      onRegister={handleRegister}
-                      onUnregister={handleUnregister}
-                      onFavorite={handleFavorite}
-                    />
-                  </Card>
-                ))}
-              </div>
-              {filteredEvents.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">No department events match your current filters</p>
-                  <Button variant="outline" className="mt-4" onClick={() => setFilters({})}>
-                    Clear Filters
+                  <p className="text-muted-foreground">No recommended events available</p>
+                  <Button variant="outline" className="mt-4" onClick={() => setActiveTab("all")}>
+                    Browse All Events
                   </Button>
                 </div>
               )}

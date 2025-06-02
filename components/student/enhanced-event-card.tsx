@@ -34,9 +34,11 @@ interface EnhancedEventCardProps {
   onRegister?: (eventId: string) => void
   onUnregister?: (eventId: string) => void
   onFavorite?: (eventId: string, isFavorite: boolean) => void
+  showStatus?: boolean
+  statusText?: "APPROVED" | "REJECTED" | "PENDING"
 }
 
-export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite }: EnhancedEventCardProps) {
+export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite, showStatus, statusText }: EnhancedEventCardProps) {
   const [isLoading, setIsLoading] = useState(false)
   const isRegistered = event.registrationStatus === "REGISTERED"
   const isWaitlisted = event.registrationStatus === "WAITLISTED"
@@ -70,6 +72,25 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
   }
 
   const getActionButton = () => {
+    if (showStatus && statusText) {
+      const statusColors = {
+        APPROVED: "text-green-500",
+        REJECTED: "text-red-500",
+        PENDING: "text-yellow-500"
+      }
+      
+      return (
+        <Button variant="ghost" className="w-full" disabled>
+          <div className={`flex items-center gap-2 ${statusColors[statusText]}`}>
+            {statusText === "APPROVED" && <CheckCircle className="h-4 w-4" />}
+            {statusText === "REJECTED" && <XCircle className="h-4 w-4" />}
+            {statusText === "PENDING" && <Loader2 className="h-4 w-4" />}
+            {statusText}
+          </div>
+        </Button>
+      )
+    }
+
     if (isLoading) {
       return (
         <Button disabled className="w-full">
