@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { type ReactNode, useState, useEffect } from "react"
-import { Bell, Moon, Search, Sun, Home, CalendarCheck, Users, FileEdit, Download, Check, X, LogOut, User, Settings } from "lucide-react"
+import { Bell, Moon, Search, Sun, Home, CalendarCheck, Users, FileEdit, Download, Check, X, LogOut, User, Settings, ChevronLeft, ChevronRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -60,6 +60,7 @@ export function DashboardLayout({
   helpLink = "#",
 }: DashboardLayoutProps) {
   const [darkMode, setDarkMode] = useState(false)
+  const [isSidebarOpen, setSidebarOpen] = useState(true)
   const { userInfo, sidebarItems, setActiveItem } = useDashboard()
   const pathname = usePathname()
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -131,6 +132,10 @@ export function DashboardLayout({
     await signOut({ callbackUrl: "/" })
   }
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!isSidebarOpen)
+  }
+
   return (
     <div className={`min-h-screen flex flex-col ${darkMode ? "dark bg-gray-900" : "bg-gray-50"}`}>
       <ToastContainer
@@ -146,13 +151,7 @@ export function DashboardLayout({
         theme="light"
       />
       {/* Header */}
-      <header className="sticky top-0 z-30 flex h-16
-
-> Eba:
-it
-
-> Eba:
-ems-center border-b bg-background px-4 md:px-6 dark:bg-gray-800 dark:border-gray-700">
+      <header className="sticky top-0 z-30 flex h-16 items-center border-b bg-background px-4 md:px-6 dark:bg-gray-800 dark:border-gray-700">
         <Link href="/" className="mr-6 flex items-center space-x-2">
           <motion.div
             className="h-8 w-8 rounded-full bg-primary flex items-center justify-center"
@@ -286,10 +285,26 @@ ems-center border-b bg-background px-4 md:px-6 dark:bg-gray-800 dark:border-gray
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar - fixed position */}
-        <aside className="hidden w-64 border-r bg-background md:block dark:bg-gray-800 dark:border-gray-700">
-          <div className="h-[calc(100vh-4rem)] sticky relative">
-            <nav className="p-4 grid gap-2 text-sm">
+        {/* Sidebar with toggle button */}
+        <aside className={`${
+          isSidebarOpen ? 'w-64' : 'w-16'
+        } fixed top-16 bottom-0 border-r bg-background transition-all duration-300 ease-in-out dark:bg-gray-800 dark:border-gray-700`}>
+          <div className="h-full flex flex-col relative">
+            {/* Toggle button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute -right-3 top-3 h-6 w-6 rounded-full border bg-background shadow-md"
+              onClick={toggleSidebar}
+            >
+              {isSidebarOpen ? (
+                <ChevronLeft className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </Button>
+
+            <nav className="flex-1 p-4 space-y-2 text-sm overflow-y-auto">
               {sidebarItems.map((item, index) => {
                 const Icon = iconMap[item.icon] || Home;
                 return (
@@ -301,11 +316,11 @@ ems-center border-b bg-background px-4 md:px-6 dark:bg-gray-800 dark:border-gray
                     }`}
                   >
                     <Icon className="h-4 w-4" />
-                    {item.title}
+                    {isSidebarOpen && <span>{item.title}</span>}
                   </Link>
                 );
               })}
-              {helpText && (
+              {helpText && isSidebarOpen && (
                 <>
                   <div className="my-2 h-[1px] w-full bg-border dark:bg-gray-700" />
                   <div className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm dark:border-gray-700">
@@ -318,21 +333,21 @@ ems-center border-b bg-background px-4 md:px-6 dark:bg-gray-800 dark:border-gray
                 </>
               )}
             </nav>
-            <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
+            <div className="p-4 border-t">
               <Button
                 variant="ghost"
-                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                className={`w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 ${!isSidebarOpen && 'px-0 justify-center'}`}
                 onClick={handleLogout}
               >
                 <LogOut className="h-4 w-4 mr-2" />
-                Logout
+                {isSidebarOpen && "Logout"}
               </Button>
             </div>
           </div>
         </aside>
 
-        {/* Main content - only this area scrolls */}
-        <main className="flex-1 overflow-y-auto">
+        {/* Main content - scrollable area with responsive margin */}
+        <main className={`flex-1 overflow-y-auto transition-all duration-300 ease-in-out ${isSidebarOpen ? 'ml-64' : 'ml-16'}`}>
           <div className="container mx-auto p-4 md:p-6">{children}</div>
         </main>
       </div>

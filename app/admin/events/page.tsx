@@ -262,10 +262,7 @@ export default function AdminEventsPage() {
             <p className="text-muted-foreground mt-1">Oversee, approve, and manage all events in the system.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
+            
             <Link href="/admin/events/create">
               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
