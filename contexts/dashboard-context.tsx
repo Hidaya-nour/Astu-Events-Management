@@ -49,8 +49,8 @@ const ORGANIZER_SIDEBAR_ITEMS: SidebarItem[] = [
   },
   {
     title: "Settings",
-    icon: "download",
-    href: "/organizer/settings",
+    icon: "settings",
+    href: "/settings",
   },
 ]
 
@@ -68,8 +68,8 @@ const STUDENT_SIDEBAR_ITEMS: SidebarItem[] = [
  
   {
     title: "Settings",
-    icon: "download",
-    href: "/student/settings",
+    icon: "settings",
+    href: "/settings",
   },
 ]
 
@@ -91,8 +91,8 @@ const ADMIN_SIDEBAR_ITEMS: SidebarItem[] = [
   },
   {
     title: "Settings",
-    icon: "download",
-    href: "/admin/settings",
+    icon: "settings",
+    href: "/settings",
   },
 ]
 
@@ -138,4 +138,4 @@ export function useDashboard() {
     throw new Error('useDashboard must be used within a DashboardProvider')
   }
   return context
-} 
+}

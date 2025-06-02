@@ -2,13 +2,14 @@
 
 import type React from "react"
 import { type ReactNode, useState, useEffect } from "react"
-import { Bell, Moon, Search, Sun, Home, CalendarCheck, Users, FileEdit, Download, Check, X } from "lucide-react"
+import { Bell, Moon, Search, Sun, Home, CalendarCheck, Users, FileEdit, Download, Check, X, LogOut, User, Settings } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { formatDistanceToNow } from "date-fns"
+import { signOut } from "next-auth/react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useDashboard } from "@/contexts/dashboard-context"
+import { motion } from "framer-motion"
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -46,7 +48,7 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   "calendar-check": CalendarCheck,
   "users": Users,
   "file-edit": FileEdit,
-  "download": Download,
+  "settings": Settings,
   // ...add more as needed
 };
 
@@ -125,6 +127,10 @@ export function DashboardLayout({
     // or use a theme provider like next-themes
   }
 
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: "/" })
+  }
+
   return (
     <div className={`min-h-screen flex flex-col ${darkMode ? "dark bg-gray-900" : "bg-gray-50"}`}>
       <ToastContainer
@@ -140,27 +146,32 @@ export function DashboardLayout({
         theme="light"
       />
       {/* Header */}
-      <header className="sticky top-0 z-30 flex h-16 items-center border-b bg-background px-4 md:px-6 dark:bg-gray-800 dark:border-gray-700">
-        <div className="flex items-center gap-2 font-semibold">
-          {appLogo ? (
-            <Image src={appLogo} width={32} height={32} alt={appName} className="rounded" />
-          ) : (
-            <div className="h-8 w-8 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold">
-              {(appName || "A").charAt(0)}
-            </div>
-          )}
-          <span className="hidden md:inline-block">{appName}</span>
-        </div>
+      <header className="sticky top-0 z-30 flex h-16
+
+> Eba:
+it
+
+> Eba:
+ems-center border-b bg-background px-4 md:px-6 dark:bg-gray-800 dark:border-gray-700">
+        <Link href="/" className="mr-6 flex items-center space-x-2">
+          <motion.div
+            className="h-8 w-8 rounded-full bg-primary flex items-center justify-center"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <span className="font-bold text-primary-foreground">A</span>
+          </motion.div>
+          <motion.span
+            className="font-bold text-foreground"
+            initial={{ opacity: 0, x: -5 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+          >
+            ASTU Events
+          </motion.span>
+        </Link>
 
         <div className="ml-auto flex items-center gap-4">
-          <div className="relative hidden md:block">
-            <Input 
-              type="search" 
-              placeholder="Search..." 
-              className="w-[200px] md:w-[300px] pl-8" 
-            />
-            <Search className="absolute left-2.5  h-4 w-4 text-muted-foreground" />
-          </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -251,11 +262,24 @@ export function DashboardLayout({
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/profile" className="flex items-center">
+                  <User className="h-4 w-4 mr-2" />
+                  Profile
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="flex items-center">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem>Help & Support</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Log out</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                <LogOut className="h-4 w-4 mr-2" />
+                Log out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -264,7 +288,7 @@ export function DashboardLayout({
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - fixed position */}
         <aside className="hidden w-64 border-r bg-background md:block dark:bg-gray-800 dark:border-gray-700">
-          <div className="h-[calc(100vh-4rem)] sticky">
+          <div className="h-[calc(100vh-4rem)] sticky relative">
             <nav className="p-4 grid gap-2 text-sm">
               {sidebarItems.map((item, index) => {
                 const Icon = iconMap[item.icon] || Home;
@@ -294,6 +318,16 @@ export function DashboardLayout({
                 </>
               )}
             </nav>
+            <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
         </aside>
 
