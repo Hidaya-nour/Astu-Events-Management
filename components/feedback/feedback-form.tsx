@@ -20,7 +20,7 @@ interface FeedbackFormProps {
 
 const formSchema = z.object({
   rating: z.number().min(1, "Please provide a rating").max(5),
-  feedback: z
+  comment: z
     .string()
     .min(10, "Feedback must be at least 10 characters")
     .max(500, "Feedback cannot exceed 500 characters"),
@@ -38,13 +38,13 @@ export function FeedbackForm({ eventId, onSuccess }: FeedbackFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       rating: 0,
-      feedback: "",
+      comment: "",
       email: "",
       wasHelpful: false,
     },
   })
 
-  const characterCount = form.watch("feedback")?.length || 0
+  const characterCount = form.watch("comment")?.length || 0
 
   async function onSubmit(data: FormValues) {
     setIsSubmitting(true)
@@ -97,7 +97,7 @@ export function FeedbackForm({ eventId, onSuccess }: FeedbackFormProps) {
 
         <FormField
           control={form.control}
-          name="feedback"
+          name="comment"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Your Feedback</FormLabel>
