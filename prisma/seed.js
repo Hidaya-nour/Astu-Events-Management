@@ -160,6 +160,7 @@ async function main() {
         eventId: events[0].id,
         rating: 5,
         comment: 'Great workshop! Learned a lot.',
+        wasHelpful: true
       },
     }),
     prisma.feedback.create({
@@ -168,6 +169,7 @@ async function main() {
         eventId: events[1].id,
         rating: 4,
         comment: 'Very informative seminar.',
+        wasHelpful: true
       },
     }),
     prisma.feedback.create({
@@ -176,6 +178,7 @@ async function main() {
         eventId: events[0].id,
         rating: 4,
         comment: 'Good content and presentation.',
+        wasHelpful: true
       },
     }),
   ]);

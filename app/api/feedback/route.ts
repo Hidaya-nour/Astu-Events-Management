@@ -6,21 +6,25 @@ import { authOptions } from "@/lib/auth"
 
 const feedbackSchema = z.object({
   eventId: z.string(),
-  rating: z.number().min(1).max(5),
-  feedback: z.string().min(10).max(500),
-  email: z.string().email().optional(),
-  wasHelpful: z.boolean(),
+  rating: z.number().min(1, "Please provide a rating").max(5),
+  comment: z.string().min(10, "Feedback must be at least 10 characters").max(500, "Feedback cannot exceed 500 characters"),
+  email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
+  wasHelpful: z.boolean().default(false),
 })
 
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
+      console.log("No session found")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const body = await req.json()
+    console.log("Received feedback data:", body)
+    
     const validatedData = feedbackSchema.parse(body)
+    console.log("Validated data:", validatedData)
 
     // Check if user has already submitted feedback for this event
     const existingFeedback = await prisma.feedback.findFirst({
@@ -31,21 +35,23 @@ export async function POST(req: Request) {
     })
 
     if (existingFeedback) {
+      console.log("User has already submitted feedback")
       return NextResponse.json(
         { error: "You have already submitted feedback for this event" },
         { status: 400 }
       )
     }
 
+    const feedbackData = {
+      eventId: validatedData.eventId,
+      userId: session.user.id,
+      rating: validatedData.rating,
+      comment: validatedData.comment,
+      wasHelpful: validatedData.wasHelpful,
+      email: validatedData.email,
+    };
     const feedback = await prisma.feedback.create({
-      data: {
-        eventId: validatedData.eventId,
-        userId: session.user.id,
-        rating: validatedData.rating,
-        feedback: validatedData.feedback,
-        email: validatedData.email,
-        wasHelpful: validatedData.wasHelpful,
-      },
+      data: feedbackData,
       include: {
         event: {
           select: {
@@ -63,16 +69,18 @@ export async function POST(req: Request) {
       },
     })
 
+    console.log("Feedback created successfully:", feedback)
     return NextResponse.json(feedback, { status: 201 })
   } catch (error) {
+    console.error("Feedback submission error:", error)
     if (error instanceof z.ZodError) {
+      console.log("Validation error details:", error.errors)
       return NextResponse.json(
         { error: "Invalid feedback data", details: error.errors },
         { status: 400 }
       )
     }
 
-    console.error("Feedback submission error:", error)
     return NextResponse.json(
       { error: "Failed to submit feedback" },
       { status: 500 }

@@ -98,29 +98,29 @@ export default function EventDetailsPage() {
   const [error, setError] = useState<string | null>(null)
   const [registering, setRegistering] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
-//   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true })
-//   const [selectedIndex, setSelectedIndex] = useState(0)
-//   const [scrollSnaps, setScrollSnaps] = useState<number[]>([])
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true })
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [scrollSnaps, setScrollSnaps] = useState<number[]>([])
 
-//   const onSelect = useCallback(() => {
-//     if (!emblaApi) return
-//     setSelectedIndex(emblaApi.selectedScrollSnap())
-//   }, [emblaApi])
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return
+    setSelectedIndex(emblaApi.selectedScrollSnap())
+  }, [emblaApi])
 
-//   useEffect(() => {
-//     if (!emblaApi) return
-//     onSelect()
-//     setScrollSnaps(emblaApi.scrollSnapList())
-//     emblaApi.on('select', onSelect)
-//   }, [emblaApi, onSelect])
+  useEffect(() => {
+    if (!emblaApi) return
+    onSelect()
+    setScrollSnaps(emblaApi.scrollSnapList())
+    emblaApi.on('select', onSelect)
+  }, [emblaApi, onSelect])
 
-//   const scrollPrev = useCallback(() => {
-//     if (emblaApi) emblaApi.scrollPrev()
-//   }, [emblaApi])
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev()
+  }, [emblaApi])
 
-//   const scrollNext = useCallback(() => {
-//     if (emblaApi) emblaApi.scrollNext()
-//   }, [emblaApi])
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext()
+  }, [emblaApi])
   const [feedbackStats, setFeedbackStats] = useState<{
     totalRatings: number
     averageRating: number
@@ -132,7 +132,8 @@ export default function EventDetailsPage() {
     rating: number,
     feedback: string,
     email?: string,
-    wasHelpful: boolean
+    wasHelpful: boolean,
+    createdAt: Date
   }>>([])
 
   const fetchFeedback = async () => {

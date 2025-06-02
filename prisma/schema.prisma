@@ -7,6 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Add this line to specify the seed command
+seed = "node prisma/seed.js"
+
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -110,7 +113,7 @@ model Feedback {
   eventId   String
   userId    String
   rating    Int
-  feedback  String
+  comment   String
   email     String?
   wasHelpful Boolean
   createdAt DateTime @default(now())

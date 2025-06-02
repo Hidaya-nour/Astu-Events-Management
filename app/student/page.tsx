@@ -259,10 +259,10 @@ export default function StudentDashboard() {
     try {
       const response = await fetch('/api/recommendations')
       if (!response.ok) throw new Error('Failed to fetch recommended events')
-      const data = await response.json()
+      const { events } = await response.json()
       
       // Transform the data to match the Event interface
-      const transformedEvents = data.map((event: any) => ({
+      const transformedEvents = events.map((event: any) => ({
         ...event,
         images: event.images || "/placeholder.svg",
         organizer: {
