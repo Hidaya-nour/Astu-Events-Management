@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from "@/lib/auth";
 import { z } from 'zod';
 import { notificationService } from "@/lib/services/notification-service";
-import { NotificationType } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 // Validation schema
 const eventSchema = z.object({
@@ -26,8 +26,8 @@ const eventSchema = z.object({
   department: z.string().max(100, 'Department must be less than 100 characters').optional(),
   contactEmail: z.string().email('Invalid email format').optional(),
   contactPhone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format').optional(),
-  tags: z.array(z.string()).max(10, 'Maximum 10 tags allowed').default([]),
-  images: z.array(z.string().url('Invalid image URL')).max(5, 'Maximum 5 images allowed').default([]),
+  tags: z.array(z.string()).max(10, 'Maximum 10 tags allowed').default([]).transform(tags => tags.join(',')),
+  images: z.array(z.string().url('Invalid image URL')).max(5, 'Maximum 5 images allowed').default([]).transform(images => images.join(',')),
   featured: z.boolean().default(false),
 });
 
@@ -35,58 +35,49 @@ export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
-    const {
-      title,
-      description,
-      date,
-      startTime,
-      endTime,
-      location,
-      venue,
-      category,
-      department,
-      tags,
-      images,
-      contactEmail,
-      contactPhone,
-      eventType,
-      isPublic,
-      requiresApproval,
-      allowFeedback,
-      organizerInfo,
-      featured,
-      capacity,
-      registrationDeadline,
-    } = body;
+    console.log("Received event data:", body);
+    
+    const validatedData = eventSchema.parse(body);
+    console.log("Validated data:", validatedData);
 
     const event = await prisma.event.create({
       data: {
-        title,
-        description,
-        date: new Date(date),
-        startTime,
-        endTime,
-        location,
-        venue,
-        category,
-        department,
-        tags,
-        images,
-        contactEmail,
-        contactPhone,
-        eventType,
-        isPublic,
-        requiresApproval,
-        allowFeedback,
-        organizerInfo,
-        featured,
-        capacity,
-        registrationDeadline: registrationDeadline ? new Date(registrationDeadline) : null,
+        title: validatedData.title,
+        description: validatedData.description,
+        date: new Date(validatedData.date),
+        startTime: validatedData.startTime,
+        endTime: validatedData.endTime,
+        location: validatedData.location,
+        venue: validatedData.venue,
+        category: validatedData.category,
+        capacity: validatedData.capacity,
+        registrationDeadline: validatedData.registrationDeadline ? new Date(validatedData.registrationDeadline) : null,
+        isPublic: validatedData.isPublic,
+        requiresApproval: validatedData.requiresApproval,
+        allowFeedback: validatedData.allowFeedback,
+        organizerInfo: validatedData.organizerInfo,
+        eventType: validatedData.eventType,
+        department: validatedData.department,
+        contactEmail: validatedData.contactEmail,
+        contactPhone: validatedData.contactPhone,
+        tags: validatedData.tags,
+        images: validatedData.images,
+        featured: validatedData.featured,
         createdById: session.user.id,
+        approvalStatus: "PENDING"
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
       },
     });
 
@@ -106,16 +97,29 @@ export async function POST(req: Request) {
         notificationService.create({
           userId: student.id,
           title: "New Event Created",
-          message: `A new event "${title}" has been created. Check it out!`,
-          type: NotificationType.EVENT_CREATED,
+          message: `A new event "${validatedData.title}" has been created. Check it out!`,
+          type: "EVENT_CREATED",
         })
       )
     );
 
-    return NextResponse.json(event);
+    // Transform the response to match the expected format
+    const transformedEvent = {
+      ...event,
+      organizer: {
+        id: event.createdBy.id,
+        name: event.createdBy.name,
+        avatar: event.createdBy.image,
+      },
+    };
+
+    return NextResponse.json(transformedEvent);
   } catch (error) {
     console.error("[EVENTS_POST]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to create event" },
+      { status: 500 }
+    );
   }
 }
 
@@ -137,7 +141,6 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
-    const registeredBy = searchParams.get('registeredBy'); // <- NEW
     
     // Build filter conditions
     const where: any = {};
@@ -179,76 +182,26 @@ export async function GET(request: Request) {
     }
 
     if (status.length > 0) {
-      if (status.includes('registered')) {
-        where.registrations = {
-          some: {
-            userId: userId,
-            status: 'CONFIRMED'
-          }
-        };
-      } else {
-        where.approvalStatus = {
-          in: status.map(s => s.trim().toUpperCase())
-        };
-      }
-    } else {
-      // Default to only approved events if no status filter is provided
-      where.approvalStatus = 'APPROVED';
+      where.approvalStatus = {
+        in: status.map(s => s.toUpperCase())
+      };
     }
-    
+
     if (search) {
       where.OR = [
-        { 
-          title: { 
-            contains: search.toLowerCase()
-          } 
-        },
-        { 
-          description: { 
-            contains: search.toLowerCase()
-          } 
-        }
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { location: { contains: search, mode: 'insensitive' } },
       ];
     }
 
-    // Handle sorting
-    let orderBy: any = {};
-    switch (sort) {
-      case 'newest':
-        orderBy = { createdAt: 'desc' };
-        break;
-      case 'oldest':
-        orderBy = { createdAt: 'asc' };
-        break;
-      case 'upcoming':
-        where.date = { gte: new Date() };
-        orderBy = { date: 'asc' };
-        break;
-      case 'past':
-        where.date = { lt: new Date() };
-        orderBy = { date: 'desc' };
-        break;
-      case 'waitlisted':
-        where.approvalStatus = 'WAITLISTED';
-        orderBy = { date: 'desc' };
-        break;
-      case 'attendees':
-        orderBy = { registrations: { _count: 'desc' } };
-        break;
-      case 'pending':
-        where.approvalStatus = 'PENDING';
-        orderBy = { createdAt: 'desc' };
-        break;
-      default:
-        orderBy = { createdAt: 'desc' };
-    }
-    if (registeredBy) {
-      where.registrations = {
-        some: {
-          userId: registeredBy
-        }
-      };
-    }
+    // Determine sort order
+    const orderBy: Prisma.EventOrderByWithRelationInput = sort === 'oldest' 
+      ? { date: 'asc' } 
+      : sort === 'popular' 
+        ? { registrations: { _count: 'desc' } }
+        : { date: 'desc' };
+
     // Fetch events with pagination and include organizer data
     const [events, total] = await Promise.all([
       prisma.event.findMany({
@@ -296,7 +249,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Error fetching events:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Failed to fetch events" },
       { status: 500 }
     );
   }

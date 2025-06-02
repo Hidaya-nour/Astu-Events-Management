@@ -4,8 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, Clock, MapPin, Users, Heart, Loader2 } from "lucide-react"
-import { EventStatusBadge } from "@/components/student/event-status-badge"
+import { Calendar, Clock, MapPin, Users, Heart, Loader2, XCircle, CheckCircle } from "lucide-react"
 import { RelevanceBadge } from "@/components/student/relevance-badge"
 import { useState } from "react"
 
@@ -26,7 +25,7 @@ interface EnhancedEventCardProps {
     department?: string
     year?: number
     image: string
-    registrationStatus: "REGISTERED" | "WAITLISTED" | "PENDING" | "NOT_REGISTERED" | "EXPIRED"
+    registrationStatus: "REGISTERED" | "WAITLISTED" | "PENDING" | "NOT_REGISTERED" | "EXPIRED" | "CANCELLED"
     registrationDeadline?: string
     eventType: "IN_PERSON" | "ONLINE" | "HYBRID"
     relevance?: Array<"DEPARTMENT" | "YEAR" | "RECOMMENDED">
@@ -39,10 +38,10 @@ interface EnhancedEventCardProps {
 
 export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite }: EnhancedEventCardProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const isRegistered =
-    event.registrationStatus === "REGISTERED" ||
-    event.registrationStatus === "WAITLISTED" ||
-    event.registrationStatus === "PENDING"
+  const isRegistered = event.registrationStatus === "REGISTERED"
+  const isWaitlisted = event.registrationStatus === "WAITLISTED"
+  const isPending = event.registrationStatus === "PENDING"
+  const isCancelled = event.registrationStatus === "CANCELLED"
   const isPastDeadline = event.registrationStatus === "EXPIRED"
   const isRelevant = event.relevance && event.relevance.length > 0
 
@@ -60,9 +59,9 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
   const handleActionClick = async () => {
     try {
       setIsLoading(true)
-      if (isRegistered) {
+      if (isRegistered || isWaitlisted || isPending) {
         await onUnregister?.(event.id)
-      } else if (!isPastDeadline) {
+      } else if (!isPastDeadline && !isCancelled) {
         await onRegister?.(event.id)
       }
     } finally {
@@ -70,19 +69,66 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
     }
   }
 
-  const getActionButtonText = () => {
-    if (isLoading) return "Processing..."
-    if (event.registrationStatus === "REGISTERED") return "Registered"
-    if (event.registrationStatus === "WAITLISTED") return "Waitlisted"
-    if (event.registrationStatus === "PENDING") return "Pending"
-    if (event.registrationStatus === "EXPIRED") return "Registration Closed"
-    return "Register"
-  }
+  const getActionButton = () => {
+    if (isLoading) {
+      return (
+        <Button disabled className="w-full">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Processing...
+        </Button>
+      )
+    }
 
-  const getActionButtonVariant = () => {
-    if (isRegistered) return "outline"
-    if (isPastDeadline) return "ghost"
-    return "default"
+    if (isRegistered) {
+      return (
+        <Button variant="outline" className="w-full" onClick={handleActionClick}>
+          <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+          Registered
+        </Button>
+      )
+    }
+
+    if (isWaitlisted) {
+      return (
+        <Button variant="secondary" className="w-full" onClick={handleActionClick}>
+          <Users className="mr-2 h-4 w-4" />
+          Waitlisted
+        </Button>
+      )
+    }
+
+    if (isPending) {
+      return (
+        <Button variant="secondary" className="w-full" onClick={handleActionClick}>
+          <Loader2 className="mr-2 h-4 w-4" />
+          Pending Approval
+        </Button>
+      )
+    }
+
+    if (isCancelled) {
+      return (
+        <Button variant="destructive" className="w-full" onClick={handleActionClick}>
+          <XCircle className="mr-2 h-4 w-4" />
+          Cancelled
+        </Button>
+      )
+    }
+
+    if (isPastDeadline) {
+      return (
+        <Button variant="ghost" className="w-full" disabled>
+          <XCircle className="mr-2 h-4 w-4" />
+          Registration Closed
+        </Button>
+      )
+    }
+
+    return (
+      <Button className="w-full" onClick={handleActionClick}>
+        Register Now
+      </Button>
+    )
   }
 
   return (
@@ -116,7 +162,6 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
             <Badge variant="outline" className="bg-white/90">
               {getEventTypeIcon(event.eventType)} {event.eventType?.replace("_", " ") || "In Person"}
             </Badge>
-            <EventStatusBadge status={event.registrationStatus} className="bg-white/90" />
           </div>
         </div>
       </CardHeader>
@@ -143,7 +188,7 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
                 <AvatarImage src={event.organizerAvatar || "/placeholder.svg"} />
-                {/* <AvatarFallback>{event.organizer.charAt(0)}</AvatarFallback> */}
+                <AvatarFallback>{event.organizer.charAt(0)}</AvatarFallback>
               </Avatar>
               <span className="text-sm text-muted-foreground">{event.organizer}</span>
             </div>
@@ -151,7 +196,7 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
               <Users className="h-4 w-4" />
               <span>
-                {Array.isArray(event.attendees) ? event.attendees.length : 0}
+                {Array.isArray(event.attendees) ? event.attendees.length : event.attendees}
                 {event.maxAttendees ? `/${event.maxAttendees}` : ""}
               </span>
             </div>
@@ -168,17 +213,7 @@ export function EnhancedEventCard({ event, onRegister, onUnregister, onFavorite 
       </CardContent>
 
       <CardFooter className="p-4 pt-0">
-        <div className="w-full flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Status:</span>
-            <EventStatusBadge status={event.registrationStatus} />
-          </div>
-          {event.registrationDeadline && (
-            <span className="text-xs text-muted-foreground">
-              Deadline: {event.registrationDeadline}
-            </span>
-          )}
-        </div>
+        {getActionButton()}
       </CardFooter>
     </Card>
   )
