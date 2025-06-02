@@ -1,112 +1,95 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Image from "next/image"
+import { useSession, signIn } from "next-auth/react"
 import { Camera, Edit, Mail, MapPin, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import EditProfileModal from "./EditProfileModal"
 
-const mockUser = {
-  id: "1",
-  name: "Ezedin Kedir",
-  email: "ezex.kedir@astu.edu.et",
-  bio: "Computer Science and Engineering Student at Adama Science and Technology University",
-  location: "Adama, Ethiopia",
-  joinedAt: "May 2025",
-  profileImage: "/placeholder.svg?height=150&width=150",
-  coverImage: "/placeholder.svg?height=300&width=1200",
+interface User {
+  id: string
+  name: string
+  email: string
+  bio?: string
+  location?: string
+  image?: string
+  coverImage?: string
+  createdAt: string
 }
 
 export default function ProfileHeader() {
   const { toast } = useToast()
-  const [user, setUser] = useState(mockUser)
-  const [isEditingName, setIsEditingName] = useState(false)
-  const [newName, setNewName] = useState(user.name)
+  const { data: session, status } = useSession()
+  const [user, setUser] = useState<User | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
 
-  const handleEditName = () => {
-    setIsEditingName(true)
-    console.log("clicked")
-  }
-
-  const handleSaveName = async () => {
-    if (!newName.trim()) {
-      toast({
-        title: "Error",
-        description: "Name cannot be empty.",
-        variant: "destructive",
-      })
+  useEffect(() => {
+    if (status === "loading") {
+      // session still loading, do nothing yet
       return
     }
+
+    if (status === "unauthenticated") {
+      // not logged in, redirect to sign-in page
+      signIn()
+      return
+    }
+
+    if (session?.user?.id) {
+      const fetchUser = async () => {
+        try {
+          const res = await fetch(`/api/user/${session.user.id}`)
+          if (!res.ok) throw new Error("Failed to fetch user")
+          const data = await res.json()
+          setUser(data)
+        } catch (err) {
+          toast({ title: "Failed to load user", variant: "destructive" })
+        }
+      }
+      fetchUser()
+    }
+  }, [session, status, toast])
+
+  const updateUser = async (updates: Partial<User>) => {
+    if (!user) return
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      setUser((prev) => ({ ...prev, name: newName }))
-      setIsEditingName(false)
-      toast({
-        title: "Name updated",
-        description: "Your profile name has been updated successfully.",
+      const res = await fetch(`/api/user/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
       })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update name. Please try again.",
-        variant: "destructive",
-      })
+      if (!res.ok) throw new Error("Update failed")
+      const updatedUser = await res.json()
+      setUser(updatedUser)
+      toast({ title: "Profile updated" })
+    } catch {
+      toast({ title: "Update failed", variant: "destructive" })
     }
   }
 
-  const handleCancelEdit = () => {
-    setNewName(user.name)
-    setIsEditingName(false)
-  }
-  const [isUploading, setIsUploading] = useState(false)
-  const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "profile" | "cover"
+  ) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file || !user) return
 
     try {
       setIsUploading(true)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      setUser((prev) => ({ ...prev, profileImage: URL.createObjectURL(file) }))
-      toast({
-        title: "Profile image updated",
-        description: "Your profile image has been updated successfully.",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to upload image. Please try again.",
-        variant: "destructive",
-      })
+      // For demo, create a local object URL; in real app upload to server/cloud
+      const imageUrl = URL.createObjectURL(file)
+      await updateUser(type === "profile" ? { image: imageUrl } : { coverImage: imageUrl })
     } finally {
       setIsUploading(false)
     }
   }
-  // coverimagehandler
- 
-  const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      setIsUploading(true)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setUser((prev) => ({ ...prev, coverImage: URL.createObjectURL(file) }))
-      toast({
-        title: "Cover image updated",
-        description: "Your cover image has been updated successfully.",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to upload cover image. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsUploading(false)
-    }
-  }
+
+  if (status === "loading") return <div>Loading session...</div>
+  if (status === "unauthenticated") return <div>Redirecting to sign-in...</div>
+  if (!user) return <div>Loading user profile...</div>
 
   return (
     <>
@@ -131,7 +114,7 @@ export default function ProfileHeader() {
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={handleCoverImageUpload}
+              onChange={(e) => handleImageUpload(e, "cover")}
               disabled={isUploading}
             />
           </label>
@@ -142,7 +125,7 @@ export default function ProfileHeader() {
             <div className="relative mb-4 sm:mb-0">
               <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-gray-100 dark:border-gray-800">
                 <Image
-                  src={user.profileImage || "/placeholder.svg"}
+                  src={user.image || "/placeholder.svg"}
                   alt={user.name}
                   className="object-cover"
                   fill
@@ -159,58 +142,39 @@ export default function ProfileHeader() {
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={handleProfileImageUpload}
+                  onChange={(e) => handleImageUpload(e, "profile")}
                   disabled={isUploading}
                 />
               </label>
             </div>
-          <div className="flex flex-1 flex-col items-center text-center sm:items-start sm:pl-6 sm:text-left">
-            <div className="flex items-center gap-2">
-              {isEditingName ? (
-                <>
-                  <input
-                    type="text"
-                    className="text-2xl font-bold border border-gray-300 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    autoFocus
-                  />
-                  <Button size="icon" variant="ghost" onClick={handleSaveName} className="h-8 w-8">
-                    ✅
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={handleCancelEdit} className="h-8 w-8">
-                    ❌
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <h2 className="text-2xl font-bold">{user.name}</h2>
-                  <Button onClick={handleEditName} className="h-8 w-8" size="icon" variant="ghost">
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
-          </div>
-            <p className="mt-1 text-gray-600 dark:text-gray-400">{user.bio}</p>
-            <div className="mt-3 flex flex-wrap gap-3">
-              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                <Mail className="mr-1 h-4 w-4" />
-                {user.email}
+            <div className="flex flex-1 flex-col items-center text-center sm:items-start sm:pl-6 sm:text-left">
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold">{user.name}</h2>
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditOpen(true)}>
+                  <Edit className="h-4 w-4" />
+                </Button>
               </div>
-              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                <MapPin className="mr-1 h-4 w-4" />
-                {user.location}
-              </div>
-              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                <Calendar className="mr-1 h-4 w-4" />
-                Joined {user.joinedAt}
+              <p className="mt-1 text-gray-600 dark:text-gray-400">{user.bio || "No bio provided."}</p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                  <Mail className="mr-1 h-4 w-4" />
+                  {user.email}
+                </div>
+                <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                  <MapPin className="mr-1 h-4 w-4" />
+                  {user.location || "Unknown location"}
+                </div>
+                <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                  <Calendar className="mr-1 h-4 w-4" />
+                  Joined {new Date(user.createdAt).toLocaleDateString()}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
- </>
+
+      <EditProfileModal open={editOpen} onOpenChange={setEditOpen} user={user} onUpdate={updateUser} />
+    </>
   )
 }
-
