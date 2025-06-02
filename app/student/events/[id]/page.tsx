@@ -132,7 +132,6 @@ export default function EventDetailsPage() {
     rating: number,
     feedback: string,
     email?: string,
-    wasHelpful: boolean,
     createdAt: Date
   }>>([])
 

@@ -8,8 +8,6 @@ const feedbackSchema = z.object({
   eventId: z.string(),
   rating: z.number().min(1, "Please provide a rating").max(5),
   comment: z.string().min(10, "Feedback must be at least 10 characters").max(500, "Feedback cannot exceed 500 characters"),
-  email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
-  wasHelpful: z.boolean().default(false),
 })
 
 export async function POST(req: Request) {
@@ -42,16 +40,13 @@ export async function POST(req: Request) {
       )
     }
 
-    const feedbackData = {
-      eventId: validatedData.eventId,
-      userId: session.user.id,
-      rating: validatedData.rating,
-      comment: validatedData.comment,
-      wasHelpful: validatedData.wasHelpful,
-      email: validatedData.email,
-    };
     const feedback = await prisma.feedback.create({
-      data: feedbackData,
+      data: {
+        eventId: validatedData.eventId,
+        userId: session.user.id,
+        rating: validatedData.rating,
+        comment: validatedData.comment,
+      },
       include: {
         event: {
           select: {
@@ -123,17 +118,12 @@ export async function GET(req: Request) {
 
     const totalRatings = stats._count
     const averageRating = stats._avg.rating || 0
-    const helpfulCount = feedback.filter(f => f.wasHelpful).length
 
     return NextResponse.json({
       feedback,
       stats: {
         totalRatings,
         averageRating: Number(averageRating.toFixed(1)),
-        helpfulCount,
-        helpfulPercentage: totalRatings > 0
-          ? Math.round((helpfulCount / totalRatings) * 100)
-          : 0,
       },
     })
   } catch (error) {

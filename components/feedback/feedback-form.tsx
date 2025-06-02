@@ -25,7 +25,6 @@ const formSchema = z.object({
     .min(10, "Feedback must be at least 10 characters")
     .max(500, "Feedback cannot exceed 500 characters"),
   email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
-  wasHelpful: z.boolean().default(false),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -40,7 +39,6 @@ export function FeedbackForm({ eventId, onSuccess }: FeedbackFormProps) {
       rating: 0,
       comment: "",
       email: "",
-      wasHelpful: false,
     },
   })
 
@@ -129,7 +127,7 @@ export function FeedbackForm({ eventId, onSuccess }: FeedbackFormProps) {
           )}
         />
 
-        <FormField
+        {/* <FormField
           control={form.control}
           name="wasHelpful"
           render={({ field }) => (
@@ -141,9 +139,9 @@ export function FeedbackForm({ eventId, onSuccess }: FeedbackFormProps) {
               <FormControl>
                 <Switch checked={field.value} onCheckedChange={field.onChange} />
               </FormControl>
-            </FormItem>
-          )}
-        />
+            </FormItem> */}
+          {/* )} */}
+        {/* /> */}
 
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? (
